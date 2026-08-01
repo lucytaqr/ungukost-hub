@@ -1,4 +1,4 @@
-package com.lucy.ungukosthub.presentastion.theme
+package com.lucy.ungukosthub.presentation.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -34,7 +34,6 @@ private val LightColorScheme = lightColorScheme(
     outline = OutlineGray
 )
 
-
 @Composable
 fun UnguKostHubTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -52,6 +51,7 @@ fun UnguKostHubTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = Typography,
         content = content
     )
 }
