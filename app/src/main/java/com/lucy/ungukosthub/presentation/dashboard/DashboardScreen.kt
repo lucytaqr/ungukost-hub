@@ -1,6 +1,7 @@
 package com.lucy.ungukosthub.presentation.dashboard
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -51,10 +52,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.lucy.ungukosthub.R
 import com.lucy.ungukosthub.presentation.room.BottomNavItem
 import java.text.NumberFormat
 import java.util.Locale
@@ -193,20 +196,11 @@ fun DashboardScreen(
                                         )
                                     }
 
-                                    Surface(
-                                        shape = RoundedCornerShape(20.dp),
-                                        color = Color.White.copy(alpha = 0.2f),
-                                        modifier = Modifier.size(72.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = Icons.Default.Home,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(40.dp)
-                                            )
-                                        }
-                                    }
+                                    Image(
+                                        painter = painterResource(id = R.drawable.boarding_house_hero),
+                                        contentDescription = "Ungu Kost Hero",
+                                        modifier = Modifier.size(90.dp)
+                                    )
                                 }
                             }
                         }

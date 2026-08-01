@@ -113,4 +113,12 @@ object AppModule {
     ): com.lucy.ungukosthub.domain.repository.TenantRepository {
         return com.lucy.ungukosthub.data.repository.TenantRepositoryImpl(firestore)
     }
+
+    @Provides
+    @Singleton
+    fun provideFacilityRepository(
+        firestore: FirebaseFirestore
+    ): com.lucy.ungukosthub.domain.repository.FacilityRepository {
+        return com.lucy.ungukosthub.data.repository.FacilityRepositoryImpl(firestore)
+    }
 }

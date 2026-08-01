@@ -38,9 +38,11 @@ data class RoomListUiState(
  */
 data class AddRoomUiState(
     val roomNumberInput: String = "",
-    val categoryInput: String = "",
+    val categoryInput: String = "Kamar",
     val priceInput: String = "",
     val facilityInput: String = "",
+    val facilitiesList: List<String> = emptyList(),
+    val facilitySuggestions: List<String> = emptyList(),
     val descriptionInput: String = "",
     val isOccupiedInput: Boolean = false,
     val photoUrlInput: String = "",
@@ -54,7 +56,8 @@ data class AddRoomUiState(
  */
 @HiltViewModel
 class RoomViewModel @Inject constructor(
-    private val roomRepository: RoomRepository
+    private val roomRepository: RoomRepository,
+    private val facilityRepository: com.lucy.ungukosthub.domain.repository.FacilityRepository
 ) : ViewModel() {
 
     private val _roomListState = MutableStateFlow(RoomListUiState())
@@ -63,35 +66,21 @@ class RoomViewModel @Inject constructor(
     private val _addRoomState = MutableStateFlow(AddRoomUiState())
     val addRoomState: StateFlow<AddRoomUiState> = _addRoomState.asStateFlow()
 
-    // Sample fallback rooms matching screenshot design
-    private val sampleRooms = listOf(
-        Room(id = "101", roomNumber = "101", category = "AC • Kamar Mandi Dalam", price = 1200000.0, isOccupied = true),
-        Room(id = "102", roomNumber = "102", category = "Non-AC • Kamar Mandi Luar", price = 900000.0, isOccupied = true),
-        Room(id = "103", roomNumber = "103", category = "AC • Kamar Mandi Dalam", price = 1200000.0, isOccupied = true),
-        Room(id = "104", roomNumber = "104", category = "Non-AC • Kamar Mandi Luar", price = 900000.0, isOccupied = true),
-        Room(id = "105", roomNumber = "105", category = "AC • Kamar Mandi Dalam", price = 1200000.0, isOccupied = false),
-        Room(id = "106", roomNumber = "106", category = "Non-AC • Kamar Mandi Luar", price = 900000.0, isOccupied = false),
-        Room(id = "107", roomNumber = "107", category = "AC • Kamar Mandi Dalam", price = 1300000.0, isOccupied = true),
-        Room(id = "108", roomNumber = "108", category = "VIP Balon", price = 1500000.0, isOccupied = true),
-        Room(id = "109", roomNumber = "109", category = "Standard AC", price = 1100000.0, isOccupied = true),
-        Room(id = "110", roomNumber = "110", category = "Non-AC • Kamar Mandi Luar", price = 900000.0, isOccupied = false),
-        Room(id = "201", roomNumber = "201", category = "AC • Kamar Mandi Dalam", price = 1200000.0, isOccupied = true),
-        Room(id = "202", roomNumber = "202", category = "AC • Kamar Mandi Dalam", price = 1200000.0, isOccupied = true),
-        Room(id = "203", roomNumber = "203", category = "Non-AC • Kamar Mandi Luar", price = 900000.0, isOccupied = true),
-        Room(id = "204", roomNumber = "204", category = "AC • Kamar Mandi Dalam", price = 1200000.0, isOccupied = true),
-        Room(id = "205", roomNumber = "205", category = "VIP Balon", price = 1600000.0, isOccupied = true),
-        Room(id = "206", roomNumber = "206", category = "Non-AC • Kamar Mandi Luar", price = 900000.0, isOccupied = false),
-        Room(id = "207", roomNumber = "207", category = "AC • Kamar Mandi Dalam", price = 1250000.0, isOccupied = true),
-        Room(id = "208", roomNumber = "208", category = "AC • Kamar Mandi Dalam", price = 1250000.0, isOccupied = true),
-        Room(id = "209", roomNumber = "209", category = "Non-AC • Kamar Mandi Luar", price = 900000.0, isOccupied = false),
-        Room(id = "210", roomNumber = "210", category = "Non-AC • Kamar Mandi Luar", price = 900000.0, isOccupied = false),
-        Room(id = "301", roomNumber = "301", category = "AC • Kamar Mandi Dalam", price = 1300000.0, isOccupied = true),
-        Room(id = "302", roomNumber = "302", category = "AC • Kamar Mandi Dalam", price = 1300000.0, isOccupied = true),
-        Room(id = "303", roomNumber = "303", category = "VIP Balon", price = 1700000.0, isOccupied = true)
-    )
-
     init {
         observeRooms()
+        observeFacilities()
+    }
+
+    fun observeFacilities() {
+        facilityRepository.getFacilities().onEach { result ->
+            when (result) {
+                is Resource.Success -> {
+                    val names = result.data?.map { it.name } ?: emptyList()
+                    _addRoomState.value = _addRoomState.value.copy(facilitySuggestions = names)
+                }
+                else -> {}
+            }
+        }.launchIn(viewModelScope)
     }
 
     fun observeRooms() {
@@ -102,11 +91,10 @@ class RoomViewModel @Inject constructor(
                 }
                 is Resource.Success -> {
                     val rawList = result.data ?: emptyList()
-                    val list = if (rawList.isEmpty()) sampleRooms else rawList
-                    updateListState(allRooms = list)
+                    updateListState(allRooms = rawList)
                 }
                 is Resource.Error -> {
-                    updateListState(allRooms = sampleRooms)
+                    updateListState(allRooms = emptyList())
                     _roomListState.value = _roomListState.value.copy(
                         isLoading = false,
                         errorMessage = result.message
@@ -177,6 +165,22 @@ class RoomViewModel @Inject constructor(
 
     fun onFacilityChanged(value: String) {
         _addRoomState.value = _addRoomState.value.copy(facilityInput = value)
+    }
+
+    fun onAddFacility(facility: String) {
+        val trimmed = facility.trim()
+        if (trimmed.isNotBlank() && !_addRoomState.value.facilitiesList.contains(trimmed)) {
+            val updated = _addRoomState.value.facilitiesList + trimmed
+            _addRoomState.value = _addRoomState.value.copy(
+                facilitiesList = updated,
+                facilityInput = ""
+            )
+        }
+    }
+
+    fun onRemoveFacility(facility: String) {
+        val updated = _addRoomState.value.facilitiesList.filter { it != facility }
+        _addRoomState.value = _addRoomState.value.copy(facilitiesList = updated)
     }
 
     fun onDescriptionChanged(value: String) {
