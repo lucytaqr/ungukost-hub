@@ -27,6 +27,7 @@ data class AddTenantUiState(
     val nameInput: String = "",
     val originInput: String = "",
     val birthDateInput: String = "",
+    val entryDateInput: String = "",
     val phoneInput: String = "",
     val roomIdInput: String = "",
     val roomNumberInput: String = "",
@@ -41,6 +42,7 @@ data class EditTenantUiState(
     val nameInput: String = "",
     val originInput: String = "",
     val birthDateInput: String = "",
+    val entryDateInput: String = "",
     val phoneInput: String = "",
     val roomIdInput: String = "",
     val roomNumberInput: String = "",
@@ -94,6 +96,7 @@ class TenantViewModel @Inject constructor(
                                 nameInput = t.name,
                                 originInput = t.origin,
                                 birthDateInput = t.birthDate,
+                                entryDateInput = t.entryDateText,
                                 phoneInput = t.phone.ifBlank { t.emergencyContact },
                                 roomIdInput = t.roomId,
                                 roomNumberInput = t.roomNumber.ifBlank { t.roomId },
@@ -128,6 +131,7 @@ class TenantViewModel @Inject constructor(
     fun onNameChanged(value: String) { _addTenantState.value = _addTenantState.value.copy(nameInput = value) }
     fun onOriginChanged(value: String) { _addTenantState.value = _addTenantState.value.copy(originInput = value) }
     fun onBirthDateChanged(value: String) { _addTenantState.value = _addTenantState.value.copy(birthDateInput = value) }
+    fun onEntryDateChanged(value: String) { _addTenantState.value = _addTenantState.value.copy(entryDateInput = value) }
     fun onPhoneChanged(value: String) { _addTenantState.value = _addTenantState.value.copy(phoneInput = value) }
     fun onRoomSelected(roomId: String, roomNumber: String) {
         _addTenantState.value = _addTenantState.value.copy(roomIdInput = roomId, roomNumberInput = roomNumber)
@@ -162,7 +166,8 @@ class TenantViewModel @Inject constructor(
                 roomNumber = state.roomNumberInput.ifBlank { state.roomIdInput },
                 ktpUrl = state.ktpPhotoUrlInput,
                 status = "Aktif",
-                entryDate = System.currentTimeMillis()
+                entryDate = System.currentTimeMillis(),
+                entryDateText = state.entryDateInput.trim()
             )
 
             tenantRepository.addTenant(newTenant)
@@ -197,6 +202,7 @@ class TenantViewModel @Inject constructor(
                 nameInput = existing.name,
                 originInput = existing.origin,
                 birthDateInput = existing.birthDate,
+                entryDateInput = existing.entryDateText,
                 phoneInput = existing.phone.ifBlank { existing.emergencyContact },
                 roomIdInput = existing.roomId,
                 roomNumberInput = existing.roomNumber.ifBlank { existing.roomId },
@@ -217,6 +223,7 @@ class TenantViewModel @Inject constructor(
                             nameInput = t.name,
                             originInput = t.origin,
                             birthDateInput = t.birthDate,
+                            entryDateInput = t.entryDateText,
                             phoneInput = t.phone.ifBlank { t.emergencyContact },
                             roomIdInput = t.roomId,
                             roomNumberInput = t.roomNumber.ifBlank { t.roomId },
@@ -235,6 +242,7 @@ class TenantViewModel @Inject constructor(
                             nameInput = fallback.name,
                             originInput = fallback.origin,
                             birthDateInput = fallback.birthDate,
+                            entryDateInput = fallback.entryDateText,
                             phoneInput = fallback.phone.ifBlank { fallback.emergencyContact },
                             roomIdInput = fallback.roomId,
                             roomNumberInput = fallback.roomNumber.ifBlank { fallback.roomId },
@@ -255,6 +263,7 @@ class TenantViewModel @Inject constructor(
     fun onEditNameChanged(value: String) { _editTenantState.value = _editTenantState.value.copy(nameInput = value) }
     fun onEditOriginChanged(value: String) { _editTenantState.value = _editTenantState.value.copy(originInput = value) }
     fun onEditBirthDateChanged(value: String) { _editTenantState.value = _editTenantState.value.copy(birthDateInput = value) }
+    fun onEditEntryDateChanged(value: String) { _editTenantState.value = _editTenantState.value.copy(entryDateInput = value) }
     fun onEditPhoneChanged(value: String) { _editTenantState.value = _editTenantState.value.copy(phoneInput = value) }
     fun onEditRoomSelected(roomId: String, roomNumber: String) {
         _editTenantState.value = _editTenantState.value.copy(roomIdInput = roomId, roomNumberInput = roomNumber)
@@ -288,7 +297,8 @@ class TenantViewModel @Inject constructor(
                 roomId = newRoomKey,
                 roomNumber = state.roomNumberInput.ifBlank { state.roomIdInput },
                 ktpUrl = state.ktpPhotoUrlInput,
-                status = "Aktif"
+                status = "Aktif",
+                entryDateText = state.entryDateInput.trim()
             )
 
             tenantRepository.updateTenant(updatedTenant)

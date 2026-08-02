@@ -1,5 +1,6 @@
 package com.lucy.ungukosthub.presentation.tenant
 
+import android.app.DatePickerDialog
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
@@ -38,6 +40,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.platform.LocalContext
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -263,7 +269,7 @@ fun EditTenantScreen(
                             )
                         }
 
-                        // 3. Tanggal Lahir
+                        // 3. Tanggal Lahir (Dialog Kalender)
                         Column {
                             Text(
                                 text = "Tanggal Lahir",
@@ -274,24 +280,98 @@ fun EditTenantScreen(
                                 )
                             )
                             Spacer(modifier = Modifier.height(6.dp))
-                            OutlinedTextField(
-                                value = editState.birthDateInput,
-                                onValueChange = viewModel::onEditBirthDateChanged,
-                                placeholder = { Text("Contoh: 12 Mei 2000", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Text,
-                                    imeAction = ImeAction.Next
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = brandPurple,
-                                    unfocusedBorderColor = Color(0xFFEBEBF5),
-                                    focusedContainerColor = Color.White,
-                                    unfocusedContainerColor = Color.White
+                            val calendarBirth = Calendar.getInstance()
+                            val birthDatePickerDialog = remember {
+                                DatePickerDialog(
+                                    context,
+                                    { _, year, month, dayOfMonth ->
+                                        val sel = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
+                                        val fmt = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
+                                        viewModel.onEditBirthDateChanged(fmt.format(sel.time))
+                                    },
+                                    calendarBirth.get(Calendar.YEAR),
+                                    calendarBirth.get(Calendar.MONTH),
+                                    calendarBirth.get(Calendar.DAY_OF_MONTH)
                                 )
-                            )
+                            }
+
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = editState.birthDateInput,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    placeholder = { Text("Pilih tanggal lahir", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
+                                    trailingIcon = {
+                                        IconButton(onClick = { birthDatePickerDialog.show() }) {
+                                            Icon(
+                                                imageVector = Icons.Default.DateRange,
+                                                contentDescription = "Pilih Tanggal Lahir",
+                                                tint = brandPurple
+                                            )
+                                        }
+                                    },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { birthDatePickerDialog.show() },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = brandPurple,
+                                        unfocusedBorderColor = Color(0xFFEBEBF5),
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+
+                        // 3b. Tanggal Masuk (Dialog Kalender)
+                        Column {
+                            LabelWithAsterisk(label = "Tanggal Masuk")
+                            Spacer(modifier = Modifier.height(6.dp))
+                            val calendarEntry = Calendar.getInstance()
+                            val entryDatePickerDialog = remember {
+                                DatePickerDialog(
+                                    context,
+                                    { _, year, month, dayOfMonth ->
+                                        val sel = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
+                                        val fmt = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
+                                        viewModel.onEditEntryDateChanged(fmt.format(sel.time))
+                                    },
+                                    calendarEntry.get(Calendar.YEAR),
+                                    calendarEntry.get(Calendar.MONTH),
+                                    calendarEntry.get(Calendar.DAY_OF_MONTH)
+                                )
+                            }
+
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = editState.entryDateInput,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    placeholder = { Text("Pilih tanggal masuk", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
+                                    trailingIcon = {
+                                        IconButton(onClick = { entryDatePickerDialog.show() }) {
+                                            Icon(
+                                                imageVector = Icons.Default.DateRange,
+                                                contentDescription = "Pilih Tanggal Masuk",
+                                                tint = brandPurple
+                                            )
+                                        }
+                                    },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { entryDatePickerDialog.show() },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = brandPurple,
+                                        unfocusedBorderColor = Color(0xFFEBEBF5),
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White
+                                    )
+                                )
+                            }
                         }
 
                         // 4. No. HP *

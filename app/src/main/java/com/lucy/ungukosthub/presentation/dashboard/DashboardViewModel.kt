@@ -2,7 +2,6 @@ package com.lucy.ungukosthub.presentation.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lucy.ungukosthub.core.util.Resource
 import com.lucy.ungukosthub.domain.model.Room
 import com.lucy.ungukosthub.domain.model.Tenant
 import com.lucy.ungukosthub.domain.model.User
@@ -17,13 +16,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import javax.inject.Inject
 
-data class PenghuniTunggakan(
-    val id: String,
-    val namaPenghuni: String,
-    val nomorKamar: String,
-    val statusTunggakan: String,
-    val nominal: Double,
-    val isCritical: Boolean
+data class TenantBillReminder(
+    val tenantId: String = "",
+    val tenantName: String = "",
+    val roomNumber: String = "",
+    val phone: String = "",
+    val entryDateText: String = "",
+    val amount: Double = 0.0
 )
 
 data class DashboardUiState(
@@ -34,7 +33,7 @@ data class DashboardUiState(
     val totalKosong: Int = 0,
     val totalEstimasiPendapatan: Double = 0.0,
     val targetPendapatan: Double = 0.0,
-    val listTunggakan: List<PenghuniTunggakan> = emptyList(),
+    val billReminders: List<TenantBillReminder> = emptyList(),
     val kamarList: List<Room> = emptyList(),
     val errorMessage: String? = null
 )
@@ -81,6 +80,22 @@ class DashboardViewModel @Inject constructor(
 
             val totalPossibleTarget = rooms.sumOf { it.price }
 
+            // Build Bill Reminders list for active tenants
+            val reminders = tenants.map { tenant ->
+                val matchedRoom = rooms.find { it.id == tenant.roomId || it.roomNumber == tenant.roomNumber }
+                val roomPrice = matchedRoom?.price ?: 0.0
+                val roomNum = tenant.roomNumber.ifBlank { tenant.roomId }
+
+                TenantBillReminder(
+                    tenantId = tenant.id,
+                    tenantName = tenant.name,
+                    roomNumber = roomNum,
+                    phone = tenant.phone.ifBlank { tenant.emergencyContact },
+                    entryDateText = tenant.entryDateText,
+                    amount = roomPrice
+                )
+            }
+
             _uiState.value = _uiState.value.copy(
                 currentUser = user,
                 isLoading = false,
@@ -90,7 +105,7 @@ class DashboardViewModel @Inject constructor(
                 totalEstimasiPendapatan = totalIncomeEstimate,
                 targetPendapatan = if (totalPossibleTarget > 0) totalPossibleTarget else 30000000.0,
                 kamarList = rooms,
-                listTunggakan = emptyList() // No hardcoded fallback
+                billReminders = reminders
             )
         }.launchIn(viewModelScope)
     }

@@ -17,7 +17,8 @@ data class TenantDto(
     @get:PropertyName("roomNumber") @set:PropertyName("roomNumber") var roomNumber: String = "",
     @get:PropertyName("ktpUrl") @set:PropertyName("ktpUrl") var ktpUrl: String = "",
     @get:PropertyName("status") @set:PropertyName("status") var status: String = "Aktif",
-    @get:PropertyName("entryDate") @set:PropertyName("entryDate") var entryDate: Long = System.currentTimeMillis()
+    @get:PropertyName("entryDate") @set:PropertyName("entryDate") var entryDate: Long = System.currentTimeMillis(),
+    @get:PropertyName("entryDateText") @set:PropertyName("entryDateText") var entryDateText: String = ""
 )
 
 fun TenantDto.toDomain(): Tenant {
@@ -32,7 +33,8 @@ fun TenantDto.toDomain(): Tenant {
         roomNumber = roomNumber,
         ktpUrl = ktpUrl,
         status = status,
-        entryDate = entryDate
+        entryDate = entryDate,
+        entryDateText = entryDateText
     )
 }
 
@@ -48,6 +50,7 @@ fun Tenant.toDto(): TenantDto {
         roomNumber = roomNumber,
         ktpUrl = ktpUrl,
         status = status,
-        entryDate = entryDate
+        entryDate = entryDate,
+        entryDateText = entryDateText
     )
 }
