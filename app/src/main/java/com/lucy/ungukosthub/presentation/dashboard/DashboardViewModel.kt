@@ -1,13 +1,20 @@
 package com.lucy.ungukosthub.presentation.dashboard
 
 import androidx.lifecycle.ViewModel
-import com.lucy.ungukosthub.domain.model.Kamar
+import androidx.lifecycle.viewModelScope
+import com.lucy.ungukosthub.core.util.Resource
+import com.lucy.ungukosthub.domain.model.Room
+import com.lucy.ungukosthub.domain.model.Tenant
 import com.lucy.ungukosthub.domain.model.User
 import com.lucy.ungukosthub.domain.repository.AuthRepository
+import com.lucy.ungukosthub.domain.repository.RoomRepository
+import com.lucy.ungukosthub.domain.repository.TenantRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
 import javax.inject.Inject
 
 data class PenghuniTunggakan(
@@ -16,92 +23,79 @@ data class PenghuniTunggakan(
     val nomorKamar: String,
     val statusTunggakan: String,
     val nominal: Double,
-    val isCritical: Boolean // true: Menunggak (Error Red), false: Jatuh Tempo (Warning Amber)
+    val isCritical: Boolean
 )
 
 data class DashboardUiState(
     val currentUser: User? = null,
     val isLoading: Boolean = false,
-    val totalKamar: Int = 20,
-    val totalTerisi: Int = 15,
-    val totalKosong: Int = 5,
-    val totalEstimasiPendapatan: Double = 22500000.0,
-    val targetPendapatan: Double = 30000000.0,
+    val totalKamar: Int = 0,
+    val totalTerisi: Int = 0,
+    val totalKosong: Int = 0,
+    val totalEstimasiPendapatan: Double = 0.0,
+    val targetPendapatan: Double = 0.0,
     val listTunggakan: List<PenghuniTunggakan> = emptyList(),
-    val kamarList: List<Kamar> = emptyList(),
+    val kamarList: List<Room> = emptyList(),
     val errorMessage: String? = null
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val roomRepository: RoomRepository,
+    private val tenantRepository: TenantRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
-        loadStaticDummyData()
+        loadDashboardData()
     }
 
-    fun loadStaticDummyData() {
+    private fun loadDashboardData() {
         val authUser = authRepository.getCurrentUser()
         val user = authUser ?: User(
-            uid = "dummy_owner_01",
+            uid = "owner_uid",
             email = "admin@ungukost.com",
-            displayName = "Pemilik Ungu Kost"
+            displayName = "Pemilik Kost"
         )
 
-        val dummyTunggakan = listOf(
-            PenghuniTunggakan(
-                id = "t1",
-                namaPenghuni = "Rian Hidayat",
-                nomorKamar = "102",
-                statusTunggakan = "Menunggak 5 Hari",
-                nominal = 1500000.0,
-                isCritical = true
-            ),
-            PenghuniTunggakan(
-                id = "t2",
-                namaPenghuni = "Siti Rahmawati",
-                nomorKamar = "205",
-                statusTunggakan = "Menunggak 2 Hari",
-                nominal = 1750000.0,
-                isCritical = true
-            ),
-            PenghuniTunggakan(
-                id = "t3",
-                namaPenghuni = "Budi Santoso",
-                nomorKamar = "108",
-                statusTunggakan = "Jatuh Tempo Besok",
-                nominal = 1500000.0,
-                isCritical = false
+        _uiState.value = _uiState.value.copy(currentUser = user, isLoading = true)
+
+        combine(
+            roomRepository.getRooms(),
+            tenantRepository.getTenants()
+        ) { roomsRes, tenantsRes ->
+            val rooms = roomsRes.data ?: emptyList()
+            val tenants = tenantsRes.data ?: emptyList()
+
+            val occupiedCount = rooms.count { room ->
+                tenants.any { t -> t.roomId == room.id || t.roomNumber == room.roomNumber }
+            }
+            val emptyCount = (rooms.size - occupiedCount).coerceAtLeast(0)
+
+            val totalIncomeEstimate = rooms.filter { room ->
+                tenants.any { t -> t.roomId == room.id || t.roomNumber == room.roomNumber }
+            }.sumOf { it.price }
+
+            val totalPossibleTarget = rooms.sumOf { it.price }
+
+            _uiState.value = _uiState.value.copy(
+                currentUser = user,
+                isLoading = false,
+                totalKamar = rooms.size,
+                totalTerisi = occupiedCount,
+                totalKosong = emptyCount,
+                totalEstimasiPendapatan = totalIncomeEstimate,
+                targetPendapatan = if (totalPossibleTarget > 0) totalPossibleTarget else 30000000.0,
+                kamarList = rooms,
+                listTunggakan = emptyList() // No hardcoded fallback
             )
-        )
-
-        val dummyKamarList = listOf(
-            Kamar(id = "k1", nomorKamar = "101", tipeKamar = "Deluxe AC", hargaSewa = 1800000.0, status = "Terisi"),
-            Kamar(id = "k2", nomorKamar = "102", tipeKamar = "Standard", hargaSewa = 1500000.0, status = "Terisi"),
-            Kamar(id = "k3", nomorKamar = "103", tipeKamar = "Standard", hargaSewa = 1500000.0, status = "Kosong"),
-            Kamar(id = "k4", nomorKamar = "104", tipeKamar = "VIP Balon", hargaSewa = 2200000.0, status = "Terisi"),
-            Kamar(id = "k5", nomorKamar = "105", tipeKamar = "Standard", hargaSewa = 1500000.0, status = "Kosong")
-        )
-
-        _uiState.value = DashboardUiState(
-            currentUser = user,
-            isLoading = false,
-            totalKamar = 20,
-            totalTerisi = 15,
-            totalKosong = 5,
-            totalEstimasiPendapatan = 22500000.0,
-            targetPendapatan = 30000000.0,
-            listTunggakan = dummyTunggakan,
-            kamarList = dummyKamarList
-        )
+        }.launchIn(viewModelScope)
     }
 
     fun logout() {
         authRepository.logout()
     }
 }
-

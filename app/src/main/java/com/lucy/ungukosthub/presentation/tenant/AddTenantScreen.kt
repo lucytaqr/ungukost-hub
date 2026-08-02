@@ -1,4 +1,4 @@
-package com.lucy.ungukosthub.presentation.finance
+package com.lucy.ungukosthub.presentation.tenant
 
 import android.app.DatePickerDialog
 import android.content.Context
@@ -30,9 +30,13 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,11 +46,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,18 +73,15 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.lucy.ungukosthub.presentation.room.LabelWithAsterisk
-import com.lucy.ungukosthub.presentation.tenant.TenantViewModel
+import com.lucy.ungukosthub.presentation.room.RoomViewModel
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 
 /**
- * Helper simpan foto kamera ke cache temp untuk bukti pemasukan
+ * Helper simpan foto KTP ke cache temp
  */
-private fun saveCameraPhotoToCache(context: Context, bitmap: Bitmap): Uri? {
+private fun saveKtpBitmapToCache(context: Context, bitmap: Bitmap): Uri? {
     return try {
-        val file = File(context.cacheDir, "income_proof_${System.currentTimeMillis()}.jpg")
+        val file = File(context.cacheDir, "ktp_tenant_${System.currentTimeMillis()}.jpg")
         file.outputStream().use { out ->
             bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
         }
@@ -88,93 +92,74 @@ private fun saveCameraPhotoToCache(context: Context, bitmap: Bitmap): Uri? {
 }
 
 /**
- * Layar Form Tambah Pemasukan (AddIncomeScreen) dengan upload bukti dari kamera & galeri.
+ * Layar Form Tambah Penghuni (AddTenantScreen) dengan 5 isian presisi:
+ * 1. Nama Lengkap
+ * 2. Tempat Asal
+ * 3. Tanggal Lahir
+ * 4. No. HP
+ * 5. Kamar yang Ditempati
+ * (serta Foto KTP / Identitas)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddIncomeScreen(
+fun AddTenantScreen(
     onNavigateBack: () -> Unit,
-    viewModel: FinanceViewModel = hiltViewModel(),
-    tenantViewModel: TenantViewModel = hiltViewModel()
+    viewModel: TenantViewModel = hiltViewModel(),
+    roomViewModel: RoomViewModel = hiltViewModel()
 ) {
+    val addState by viewModel.addTenantState.collectAsState()
+    val roomListState by roomViewModel.roomListState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+
     val brandPurple = Color(0xFF4C3BCE)
     val darkTitleColor = Color(0xFF2C1458)
     val backgroundLight = Color(0xFFFBFBFD)
 
-    val tenantListState by tenantViewModel.uiState.collectAsState()
+    var roomDropdownExpanded by remember { mutableStateOf(false) }
 
-    var tenantInput by remember { mutableStateOf("") }
-    var amountInput by remember { mutableStateOf("") }
-
-    val currentDateStr = remember {
-        val format = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
-        format.format(Calendar.getInstance().time)
-    }
-    var dateInput by remember { mutableStateOf(currentDateStr) }
-    var noteInput by remember { mutableStateOf("") }
-    var proofPhotoUrl by remember { mutableStateOf("") }
-
-    var tenantDropdownExpanded by remember { mutableStateOf(false) }
-
-    // Launcher Kamera Langsung
+    // Launcher Kamera KTP
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
         if (bitmap != null) {
-            val uri = saveCameraPhotoToCache(context, bitmap)
+            val uri = saveKtpBitmapToCache(context, bitmap)
             if (uri != null) {
-                proofPhotoUrl = uri.toString()
+                viewModel.onKtpPhotoUrlChanged(uri.toString())
             }
         }
     }
 
-    // Launcher Galeri
+    // Launcher Galeri KTP
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            proofPhotoUrl = uri.toString()
+            viewModel.onKtpPhotoUrlChanged(uri.toString())
         }
     }
 
-    // Format daftar opsi penghuni dari data real Firestore
-    val tenantOptions = remember(tenantListState.tenants) {
-        if (tenantListState.tenants.isNotEmpty()) {
-            tenantListState.tenants.map { tenant ->
-                val roomStr = tenant.roomNumber.ifBlank { tenant.roomId }
-                if (roomStr.isNotBlank()) "${tenant.name} - Kamar $roomStr" else tenant.name
-            }
-        } else {
-            emptyList()
+    LaunchedEffect(addState.isSuccess) {
+        if (addState.isSuccess) {
+            viewModel.resetAddTenantState()
+            onNavigateBack()
         }
     }
 
-    // Dialog Kalender untuk Field Tanggal
-    val calendar = Calendar.getInstance()
-    val datePickerDialog = remember {
-        DatePickerDialog(
-            context,
-            { _, year, month, dayOfMonth ->
-                val selectedCalendar = Calendar.getInstance().apply {
-                    set(year, month, dayOfMonth)
-                }
-                val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
-                dateInput = dateFormat.format(selectedCalendar.time)
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        )
+    LaunchedEffect(addState.errorMessage) {
+        addState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+        }
     }
 
     Scaffold(
         modifier = Modifier.navigationBarsPadding(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Tambah Pemasukan",
+                        text = "Tambah Penghuni",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
@@ -208,6 +193,7 @@ fun AddIncomeScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Main Form Card Container
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -220,7 +206,7 @@ fun AddIncomeScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(
-                            text = "Informasi Pemasukan",
+                            text = "Informasi Penghuni",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
@@ -228,89 +214,19 @@ fun AddIncomeScreen(
                             )
                         )
 
-                        // 1. Dari Penghuni * (Real Data Firestore)
+                        // 1. Nama Lengkap *
                         Column {
-                            LabelWithAsterisk(label = "Dari Penghuni")
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(
-                                    value = tenantInput,
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    placeholder = { Text("Pilih penghuni", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
-                                    trailingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.KeyboardArrowDown,
-                                            contentDescription = null,
-                                            tint = brandPurple,
-                                            modifier = Modifier.clickable { tenantDropdownExpanded = !tenantDropdownExpanded }
-                                        )
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { tenantDropdownExpanded = !tenantDropdownExpanded },
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = brandPurple,
-                                        unfocusedBorderColor = Color(0xFFEBEBF5),
-                                        focusedContainerColor = Color.White,
-                                        unfocusedContainerColor = Color.White
-                                    )
-                                )
-                                DropdownMenu(
-                                    expanded = tenantDropdownExpanded,
-                                    onDismissRequest = { tenantDropdownExpanded = false }
-                                ) {
-                                    if (tenantOptions.isEmpty()) {
-                                        DropdownMenuItem(
-                                            text = { Text("Belum ada data penghuni", color = Color(0xFF8E8E93)) },
-                                            onClick = { tenantDropdownExpanded = false }
-                                        )
-                                    } else {
-                                        tenantOptions.forEach { option ->
-                                            DropdownMenuItem(
-                                                text = { Text(option) },
-                                                onClick = {
-                                                    tenantInput = option
-                                                    tenantDropdownExpanded = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // 2. Jumlah *
-                        Column {
-                            LabelWithAsterisk(label = "Jumlah")
+                            LabelWithAsterisk(label = "Nama Lengkap")
                             Spacer(modifier = Modifier.height(6.dp))
                             OutlinedTextField(
-                                value = amountInput,
-                                onValueChange = { amountInput = it },
-                                placeholder = { Text("0", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
-                                leadingIcon = {
-                                    Surface(
-                                        shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp),
-                                        color = Color(0xFFF0EFF6),
-                                        modifier = Modifier.padding(end = 8.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = "Rp",
-                                                style = MaterialTheme.typography.bodyMedium.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF4A4A4A)
-                                                )
-                                            )
-                                        }
-                                    }
-                                },
+                                value = addState.nameInput,
+                                onValueChange = viewModel::onNameChanged,
+                                placeholder = { Text("Contoh: Lucyta Qutsyaning", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
                                 singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Text,
+                                    imeAction = ImeAction.Next
+                                ),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -322,21 +238,74 @@ fun AddIncomeScreen(
                             )
                         }
 
-                        // 3. Tanggal * (Dialog Kalender)
+                        // 2. Tempat Asal
                         Column {
-                            LabelWithAsterisk(label = "Tanggal")
+                            Text(
+                                text = "Tempat Asal",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = darkTitleColor,
+                                    fontSize = 14.sp
+                                )
+                            )
                             Spacer(modifier = Modifier.height(6.dp))
+                            OutlinedTextField(
+                                value = addState.originInput,
+                                onValueChange = viewModel::onOriginChanged,
+                                placeholder = { Text("Contoh: Malang", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Text,
+                                    imeAction = ImeAction.Next
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = brandPurple,
+                                    unfocusedBorderColor = Color(0xFFEBEBF5),
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White
+                                )
+                            )
+                        }
+
+                        // 3. Tanggal Lahir (Dialog Kalender)
+                        Column {
+                            Text(
+                                text = "Tanggal Lahir",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = darkTitleColor,
+                                    fontSize = 14.sp
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            val calendar = Calendar.getInstance()
+                            val datePickerDialog = remember {
+                                DatePickerDialog(
+                                    context,
+                                    { _, year, month, dayOfMonth ->
+                                        val sel = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
+                                        val fmt = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
+                                        viewModel.onBirthDateChanged(fmt.format(sel.time))
+                                    },
+                                    calendar.get(Calendar.YEAR),
+                                    calendar.get(Calendar.MONTH),
+                                    calendar.get(Calendar.DAY_OF_MONTH)
+                                )
+                            }
+
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 OutlinedTextField(
-                                    value = dateInput,
+                                    value = addState.birthDateInput,
                                     onValueChange = {},
                                     readOnly = true,
-                                    placeholder = { Text("Pilih tanggal", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
+                                    placeholder = { Text("Pilih tanggal lahir", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
                                     trailingIcon = {
                                         IconButton(onClick = { datePickerDialog.show() }) {
                                             Icon(
                                                 imageVector = Icons.Default.DateRange,
-                                                contentDescription = "Pilih Tanggal",
+                                                contentDescription = "Pilih Tanggal Lahir",
                                                 tint = brandPurple
                                             )
                                         }
@@ -356,22 +325,19 @@ fun AddIncomeScreen(
                             }
                         }
 
-                        // 4. Keterangan
+                        // 4. No. HP *
                         Column {
-                            Text(
-                                text = "Keterangan",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = darkTitleColor,
-                                    fontSize = 14.sp
-                                )
-                            )
+                            LabelWithAsterisk(label = "No. HP")
                             Spacer(modifier = Modifier.height(6.dp))
                             OutlinedTextField(
-                                value = noteInput,
-                                onValueChange = { noteInput = it },
-                                placeholder = { Text("Masukkan keterangan (opsional)", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
+                                value = addState.phoneInput,
+                                onValueChange = viewModel::onPhoneChanged,
+                                placeholder = { Text("Contoh: 0812-3456-7890", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
                                 singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Phone,
+                                    imeAction = ImeAction.Next
+                                ),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -383,17 +349,79 @@ fun AddIncomeScreen(
                             )
                         }
 
-                        // 5. Bukti Pemasukan (Opsional)
+                        // 5. Kamar yang Ditempati *
+                        Column {
+                            LabelWithAsterisk(label = "Yang Ditempati")
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                val selectedRoomText = if (addState.roomNumberInput.isNotBlank()) {
+                                    val r = addState.roomNumberInput
+                                    if (r.startsWith("Kamar", ignoreCase = true)) r else "Kamar $r"
+                                } else ""
+
+                                OutlinedTextField(
+                                    value = selectedRoomText,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    placeholder = { Text("Pilih Kamar / Rumah", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
+                                    trailingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.KeyboardArrowDown,
+                                            contentDescription = "Dropdown",
+                                            tint = brandPurple,
+                                            modifier = Modifier.clickable { roomDropdownExpanded = !roomDropdownExpanded }
+                                        )
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { roomDropdownExpanded = !roomDropdownExpanded },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = brandPurple,
+                                        unfocusedBorderColor = Color(0xFFEBEBF5),
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White
+                                    )
+                                )
+
+                                DropdownMenu(
+                                    expanded = roomDropdownExpanded,
+                                    onDismissRequest = { roomDropdownExpanded = false }
+                                ) {
+                                    val availableRooms = roomListState.rooms
+                                    if (availableRooms.isEmpty()) {
+                                        DropdownMenuItem(
+                                            text = { Text("Belum ada data kamar tersedia", color = Color(0xFF8E8E93)) },
+                                            onClick = { roomDropdownExpanded = false }
+                                        )
+                                    } else {
+                                        availableRooms.forEach { room ->
+                                            DropdownMenuItem(
+                                                text = { Text("Kamar ${room.roomNumber}") },
+                                                onClick = {
+                                                    viewModel.onRoomSelected(room.id, room.roomNumber)
+                                                    roomDropdownExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Section Foto KTP / Identitas
                         Text(
-                            text = "Bukti Pemasukan (Opsional)",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = darkTitleColor,
-                                fontSize = 14.sp
+                            text = "Foto KTP / Identitas",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = darkTitleColor
                             )
                         )
 
-                        if (proofPhotoUrl.isBlank()) {
+                        if (addState.ktpPhotoUrlInput.isBlank()) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -409,17 +437,17 @@ fun AddIncomeScreen(
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(vertical = 18.dp),
+                                            .padding(vertical = 20.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.CameraAlt,
-                                            contentDescription = "Ambil Kamera",
+                                            contentDescription = "Foto KTP",
                                             tint = brandPurple,
-                                            modifier = Modifier.size(30.dp)
+                                            modifier = Modifier.size(32.dp)
                                         )
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Text("Ambil Kamera", fontWeight = FontWeight.Bold, color = brandPurple, fontSize = 13.sp)
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text("Ambil Kamera", fontWeight = FontWeight.Bold, color = brandPurple, fontSize = 14.sp)
                                     }
                                 }
 
@@ -434,29 +462,30 @@ fun AddIncomeScreen(
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(vertical = 18.dp),
+                                            .padding(vertical = 20.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.PhotoLibrary,
-                                            contentDescription = "Pilih Galeri",
+                                            contentDescription = "Pilih KTP",
                                             tint = brandPurple,
-                                            modifier = Modifier.size(30.dp)
+                                            modifier = Modifier.size(32.dp)
                                         )
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Text("Pilih Galeri", fontWeight = FontWeight.Bold, color = brandPurple, fontSize = 13.sp)
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text("Pilih Galeri", fontWeight = FontWeight.Bold, color = brandPurple, fontSize = 14.sp)
                                     }
                                 }
                             }
                         } else {
+                            // Pratinjau Foto KTP yang Diupload
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(160.dp)
+                                    .height(180.dp)
                             ) {
                                 AsyncImage(
-                                    model = proofPhotoUrl,
-                                    contentDescription = "Bukti Pemasukan",
+                                    model = addState.ktpPhotoUrlInput,
+                                    contentDescription = "Pratinjau KTP",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -468,14 +497,14 @@ fun AddIncomeScreen(
                                         .align(Alignment.TopEnd)
                                         .padding(8.dp)
                                         .size(28.dp)
-                                        .clickable { proofPhotoUrl = "" },
+                                        .clickable { viewModel.onKtpPhotoUrlChanged("") },
                                     shape = RoundedCornerShape(14.dp),
                                     color = Color(0xFFE53935)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
-                                            contentDescription = "Hapus Bukti",
+                                            contentDescription = "Hapus Foto KTP",
                                             tint = Color.White,
                                             modifier = Modifier.size(16.dp)
                                         )
@@ -488,24 +517,26 @@ fun AddIncomeScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Tombol Simpan Penghuni
                 Button(
-                    onClick = {
-                        val amount = amountInput.toDoubleOrNull() ?: 0.0
-                        viewModel.addIncome("Sewa Kamar", tenantInput, amount, dateInput, noteInput, proofPhotoUrl)
-                        onNavigateBack()
-                    },
+                    onClick = viewModel::addTenant,
+                    enabled = !addState.isLoading,
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = brandPurple),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(52.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = brandPurple)
                 ) {
-                    Text(
-                        text = "Simpan Pemasukan",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    if (addState.isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.5.dp)
+                    } else {
+                        Text(
+                            text = "Simpan Penghuni",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

@@ -1,5 +1,11 @@
 package com.lucy.ungukosthub.presentation.finance
 
+import android.app.DatePickerDialog
+import android.content.Context
+import android.graphics.Bitmap
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -20,8 +27,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -44,17 +53,40 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.lucy.ungukosthub.presentation.room.LabelWithAsterisk
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 /**
- * Layar Form Tambah Pengeluaran (AddExpenseScreen) yang disesuaikan presisi dengan 09_expense_add.png
+ * Helper simpan foto kamera ke cache temp untuk bukti pengeluaran
+ */
+private fun saveCameraPhotoToCache(context: Context, bitmap: Bitmap): Uri? {
+    return try {
+        val file = File(context.cacheDir, "expense_proof_${System.currentTimeMillis()}.jpg")
+        file.outputStream().use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }
+        Uri.fromFile(file)
+    } catch (e: Exception) {
+        null
+    }
+}
+
+/**
+ * Layar Form Tambah Pengeluaran (AddExpenseScreen) dengan bukti kamera & galeri.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,19 +94,66 @@ fun AddExpenseScreen(
     onNavigateBack: () -> Unit,
     viewModel: FinanceViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val brandPurple = Color(0xFF4C3BCE)
     val darkTitleColor = Color(0xFF2C1458)
     val backgroundLight = Color(0xFFFBFBFD)
 
     var categoryInput by remember { mutableStateOf("") }
     var amountInput by remember { mutableStateOf("") }
-    var dateInput by remember { mutableStateOf("10 Jun 2024") }
+
+    val currentDateStr = remember {
+        val format = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
+        format.format(Calendar.getInstance().time)
+    }
+    var dateInput by remember { mutableStateOf(currentDateStr) }
     var noteInput by remember { mutableStateOf("") }
+    var proofPhotoUrl by remember { mutableStateOf("") }
 
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
-    val categoryOptions = listOf("Listrik", "Air", "Internet", "Kebersihan & Sampah", "Perbaikan & Perawatan")
+    val categoryOptions = listOf("Listrik", "Air", "Internet", "Lainnya")
+
+    // Launcher Kamera Langsung
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            val uri = saveCameraPhotoToCache(context, bitmap)
+            if (uri != null) {
+                proofPhotoUrl = uri.toString()
+            }
+        }
+    }
+
+    // Launcher Galeri
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            proofPhotoUrl = uri.toString()
+        }
+    }
+
+    // Dialog Kalender untuk Field Tanggal
+    val calendar = Calendar.getInstance()
+    val datePickerDialog = remember {
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val selectedCalendar = Calendar.getInstance().apply {
+                    set(year, month, dayOfMonth)
+                }
+                val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
+                dateInput = dateFormat.format(selectedCalendar.time)
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+    }
 
     Scaffold(
+        modifier = Modifier.navigationBarsPadding(),
         topBar = {
             TopAppBar(
                 title = {
@@ -220,30 +299,38 @@ fun AddExpenseScreen(
                             )
                         }
 
-                        // 3. Tanggal *
+                        // 3. Tanggal * (Dialog Kalender)
                         Column {
                             LabelWithAsterisk(label = "Tanggal")
                             Spacer(modifier = Modifier.height(6.dp))
-                            OutlinedTextField(
-                                value = dateInput,
-                                onValueChange = { dateInput = it },
-                                trailingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.DateRange,
-                                        contentDescription = "Tanggal",
-                                        tint = brandPurple
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = dateInput,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    placeholder = { Text("Pilih tanggal", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
+                                    trailingIcon = {
+                                        IconButton(onClick = { datePickerDialog.show() }) {
+                                            Icon(
+                                                imageVector = Icons.Default.DateRange,
+                                                contentDescription = "Pilih Tanggal",
+                                                tint = brandPurple
+                                            )
+                                        }
+                                    },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { datePickerDialog.show() },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = brandPurple,
+                                        unfocusedBorderColor = Color(0xFFEBEBF5),
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White
                                     )
-                                },
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = brandPurple,
-                                    unfocusedBorderColor = Color(0xFFEBEBF5),
-                                    focusedContainerColor = Color.White,
-                                    unfocusedContainerColor = Color.White
                                 )
-                            )
+                            }
                         }
 
                         // 4. Keterangan
@@ -273,9 +360,9 @@ fun AddExpenseScreen(
                             )
                         }
 
-                        // 5. Bukti (Opsional) Upload Box
+                        // 5. Bukti Pengeluaran (Opsional)
                         Text(
-                            text = "Bukti (Opsional)",
+                            text = "Bukti Pengeluaran (Opsional)",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 color = darkTitleColor,
@@ -283,44 +370,94 @@ fun AddExpenseScreen(
                             )
                         )
 
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { /* Upload */ },
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFF8F7FD),
-                            border = BorderStroke(1.dp, Color(0xFFD4CFFE))
-                        ) {
-                            Column(
+                        if (proofPhotoUrl.isBlank()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Surface(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { cameraLauncher.launch(null) },
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFFF8F7FD),
+                                    border = BorderStroke(1.dp, Color(0xFFD4CFFE))
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 18.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CameraAlt,
+                                            contentDescription = "Ambil Kamera",
+                                            tint = brandPurple,
+                                            modifier = Modifier.size(30.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text("Ambil Kamera", fontWeight = FontWeight.Bold, color = brandPurple, fontSize = 13.sp)
+                                    }
+                                }
+
+                                Surface(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { galleryLauncher.launch("image/*") },
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFFF8F7FD),
+                                    border = BorderStroke(1.dp, Color(0xFFD4CFFE))
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 18.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PhotoLibrary,
+                                            contentDescription = "Pilih Galeri",
+                                            tint = brandPurple,
+                                            modifier = Modifier.size(30.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text("Pilih Galeri", fontWeight = FontWeight.Bold, color = brandPurple, fontSize = 13.sp)
+                                    }
+                                }
+                            }
+                        } else {
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 20.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                                    .height(160.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.CameraAlt,
-                                    contentDescription = "Upload Foto",
-                                    tint = brandPurple,
-                                    modifier = Modifier.size(36.dp)
+                                AsyncImage(
+                                    model = proofPhotoUrl,
+                                    contentDescription = "Bukti Pengeluaran",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(16.dp))
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Pilih Foto",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = brandPurple
-                                    )
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Upload bukti pengeluaran",
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontSize = 12.sp,
-                                        color = Color(0xFF8E8E93)
-                                    )
-                                )
+
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(8.dp)
+                                        .size(28.dp)
+                                        .clickable { proofPhotoUrl = "" },
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = Color(0xFFE53935)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Hapus Bukti",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -331,7 +468,7 @@ fun AddExpenseScreen(
                 Button(
                     onClick = {
                         val amount = amountInput.toDoubleOrNull() ?: 0.0
-                        viewModel.addExpense(categoryInput, amount, dateInput, noteInput)
+                        viewModel.addExpense(categoryInput, amount, dateInput, noteInput, proofPhotoUrl)
                         onNavigateBack()
                     },
                     shape = RoundedCornerShape(16.dp),

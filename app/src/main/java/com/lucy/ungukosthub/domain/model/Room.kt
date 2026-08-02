@@ -9,5 +9,7 @@ data class Room(
     val category: String = "",
     val price: Double = 0.0,
     val isOccupied: Boolean = false,
-    val photoUrl: String = ""
+    val photoUrl: String = "",
+    val photoUrls: List<String> = emptyList(),
+    val facilities: List<String> = emptyList()
 )

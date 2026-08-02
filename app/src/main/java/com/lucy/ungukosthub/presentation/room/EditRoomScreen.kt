@@ -47,10 +47,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -77,11 +74,11 @@ import coil.compose.AsyncImage
 import java.io.File
 
 /**
- * Helper untuk menyimpan foto tangkapan kamera langsung ke berkas cache temp
+ * Helper simpan foto kamera ke cache temp untuk edit kamar
  */
-private fun saveBitmapToCache(context: Context, bitmap: Bitmap): Uri? {
+private fun saveCameraPhotoToCache(context: Context, bitmap: Bitmap): Uri? {
     return try {
-        val file = File(context.cacheDir, "camera_room_${System.currentTimeMillis()}.jpg")
+        val file = File(context.cacheDir, "edit_room_photo_${System.currentTimeMillis()}.jpg")
         file.outputStream().use { out ->
             bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
         }
@@ -92,16 +89,16 @@ private fun saveBitmapToCache(context: Context, bitmap: Bitmap): Uri? {
 }
 
 /**
- * Layar Form Tambah Kamar Baru (AddRoomScreen) dengan penanganan navigasi Android (navigationBarsPadding)
- * serta dukungan foto kamera langsung + galeri dengan peninjauan banyak foto & tombol hapus (X).
+ * Layar Edit Data Kamar (EditRoomScreen)
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun AddRoomScreen(
+fun EditRoomScreen(
+    roomId: String,
     onNavigateBack: () -> Unit,
     viewModel: RoomViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.addRoomState.collectAsState()
+    val uiState by viewModel.editRoomState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -109,33 +106,45 @@ fun AddRoomScreen(
     val darkTitleColor = Color(0xFF2C1458)
     val backgroundLight = Color(0xFFFBFBFD)
 
-    val facilitySuggestions = uiState.facilitySuggestions
+    val defaultSuggestions = remember {
+        listOf("Kasur", "Lemari", "AC", "Kamar Mandi Dalam", "WiFi", "Meja Belajar", "Water Heater")
+    }
 
-    // Launcher 1: Kamera Langsung
+    val facilitySuggestions = remember(uiState.facilitySuggestions) {
+        if (uiState.facilitySuggestions.isNotEmpty()) uiState.facilitySuggestions else defaultSuggestions
+    }
+
+    LaunchedEffect(roomId) {
+        if (roomId.isNotBlank()) {
+            viewModel.loadRoomForEdit(roomId)
+        }
+    }
+
+    // Launcher Kamera Langsung
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
         if (bitmap != null) {
-            val uri = saveBitmapToCache(context, bitmap)
+            val uri = saveCameraPhotoToCache(context, bitmap)
             if (uri != null) {
-                viewModel.onAddPhotoUrls(listOf(uri.toString()))
+                viewModel.onEditAddPhotoUrls(listOf(uri.toString()))
             }
         }
     }
 
-    // Launcher 2: Galeri Foto
+    // Launcher Galeri
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
         if (uris.isNotEmpty()) {
             val urlStrings = uris.map { it.toString() }
-            viewModel.onAddPhotoUrls(urlStrings)
+            viewModel.onEditAddPhotoUrls(urlStrings)
         }
     }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
-            viewModel.resetAddRoomState()
+            viewModel.resetEditRoomState()
             onNavigateBack()
         }
     }
@@ -143,7 +152,6 @@ fun AddRoomScreen(
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
-            viewModel.clearErrorMessage()
         }
     }
 
@@ -154,7 +162,7 @@ fun AddRoomScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Tambah Kamar",
+                        text = "Edit Kamar",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
@@ -171,9 +179,7 @@ fun AddRoomScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         }
     ) { paddingValues ->
@@ -203,7 +209,7 @@ fun AddRoomScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(
-                            text = "Informasi Kamar",
+                            text = "Edit Informasi Kamar",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
@@ -217,7 +223,7 @@ fun AddRoomScreen(
                             Spacer(modifier = Modifier.height(6.dp))
                             OutlinedTextField(
                                 value = uiState.roomNumberInput,
-                                onValueChange = viewModel::onRoomNumberChanged,
+                                onValueChange = viewModel::onEditRoomNumberChanged,
                                 placeholder = { Text("Contoh: 101", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(
@@ -246,13 +252,13 @@ fun AddRoomScreen(
                                 CategorySelectCard(
                                     title = "Kamar",
                                     isSelected = uiState.categoryInput == "Kamar",
-                                    onClick = { viewModel.onCategoryChanged("Kamar") },
+                                    onClick = { viewModel.onEditCategoryChanged("Kamar") },
                                     modifier = Modifier.weight(1f)
                                 )
                                 CategorySelectCard(
                                     title = "Rumah",
                                     isSelected = uiState.categoryInput == "Rumah",
-                                    onClick = { viewModel.onCategoryChanged("Rumah") },
+                                    onClick = { viewModel.onEditCategoryChanged("Rumah") },
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -264,7 +270,7 @@ fun AddRoomScreen(
                             Spacer(modifier = Modifier.height(6.dp))
                             OutlinedTextField(
                                 value = uiState.priceInput,
-                                onValueChange = viewModel::onPriceChanged,
+                                onValueChange = viewModel::onEditPriceChanged,
                                 placeholder = { Text("0", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
                                 leadingIcon = {
                                     Surface(
@@ -273,8 +279,7 @@ fun AddRoomScreen(
                                         modifier = Modifier.padding(end = 8.dp)
                                     ) {
                                         Box(
-                                            modifier = Modifier
-                                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
@@ -303,7 +308,7 @@ fun AddRoomScreen(
                             )
                         }
 
-                        // 4. Fasilitas (Chip Container dengan Silang 'X' Hapus)
+                        // 4. Fasilitas (Chip Container + Rekomendasi Fasilitas)
                         Column {
                             Text(
                                 text = "Fasilitas",
@@ -315,7 +320,6 @@ fun AddRoomScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // Outer Container Box
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(14.dp),
@@ -331,7 +335,7 @@ fun AddRoomScreen(
                                         uiState.facilitiesList.forEach { facility ->
                                             FacilityChip(
                                                 label = facility,
-                                                onRemove = { viewModel.onRemoveFacility(facility) }
+                                                onRemove = { viewModel.onEditRemoveFacility(facility) }
                                             )
                                         }
                                     }
@@ -346,14 +350,14 @@ fun AddRoomScreen(
                                     ) {
                                         OutlinedTextField(
                                             value = uiState.facilityInput,
-                                            onValueChange = viewModel::onFacilityChanged,
+                                            onValueChange = viewModel::onEditFacilityChanged,
                                             placeholder = { Text("Ketik fasilitas baru...", color = Color(0xFF9E9E9E), fontSize = 13.sp) },
                                             singleLine = true,
                                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                             keyboardActions = KeyboardActions(
                                                 onDone = {
                                                     if (uiState.facilityInput.isNotBlank()) {
-                                                        viewModel.onAddFacility(uiState.facilityInput)
+                                                        viewModel.onEditAddFacility(uiState.facilityInput)
                                                     }
                                                 }
                                             ),
@@ -372,7 +376,7 @@ fun AddRoomScreen(
                                         IconButton(
                                             onClick = {
                                                 if (uiState.facilityInput.isNotBlank()) {
-                                                    viewModel.onAddFacility(uiState.facilityInput)
+                                                    viewModel.onEditAddFacility(uiState.facilityInput)
                                                 }
                                             },
                                             modifier = Modifier
@@ -390,6 +394,7 @@ fun AddRoomScreen(
                                 }
                             }
 
+                            // Pilihan Rekomendasi Fasilitas
                             if (facilitySuggestions.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Text(
@@ -409,7 +414,7 @@ fun AddRoomScreen(
                                     facilitySuggestions.forEach { suggestion ->
                                         if (!uiState.facilitiesList.contains(suggestion)) {
                                             Surface(
-                                                modifier = Modifier.clickable { viewModel.onAddFacility(suggestion) },
+                                                modifier = Modifier.clickable { viewModel.onEditAddFacility(suggestion) },
                                                 shape = RoundedCornerShape(20.dp),
                                                 color = Color(0xFFF0EFF6)
                                             ) {
@@ -429,11 +434,7 @@ fun AddRoomScreen(
                             }
                         }
 
-
-
-
-
-                        // Section 2: Foto Kondisi Kamar (Bisa dari Kamera Langsung & Galeri + Fitur Hapus)
+                        // Section 2: Foto Kondisi Kamar
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -452,7 +453,6 @@ fun AddRoomScreen(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         if (uiState.photoUrlsList.isEmpty()) {
-                            // Dua Tombol Pilihan Utama Side-by-Side: Kamera Langsung & Galeri Foto
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -485,14 +485,6 @@ fun AddRoomScreen(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 14.sp,
                                                 color = brandPurple
-                                            )
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = "Foto Langsung",
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                fontSize = 11.sp,
-                                                color = Color(0xFF8E8E93)
                                             )
                                         )
                                     }
@@ -528,19 +520,10 @@ fun AddRoomScreen(
                                                 color = brandPurple
                                             )
                                         )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = "Pilih banyak berkas",
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                fontSize = 11.sp,
-                                                color = Color(0xFF8E8E93)
-                                            )
-                                        )
                                     }
                                 }
                             }
                         } else {
-                            // Row Horizontal Foto-foto dengan tombol Hapus (X) merah di tiap sudut foto
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -548,9 +531,7 @@ fun AddRoomScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 uiState.photoUrlsList.forEach { photoUrl ->
-                                    Box(
-                                        modifier = Modifier.size(110.dp)
-                                    ) {
+                                    Box(modifier = Modifier.size(110.dp)) {
                                         AsyncImage(
                                             model = photoUrl,
                                             contentDescription = "Foto Kondisi Kamar",
@@ -560,13 +541,12 @@ fun AddRoomScreen(
                                                 .clip(RoundedCornerShape(14.dp))
                                         )
 
-                                        // Tombol Silang Merah (X) untuk Hapus Foto ini
                                         Surface(
                                             modifier = Modifier
                                                 .align(Alignment.TopEnd)
                                                 .padding(6.dp)
                                                 .size(24.dp)
-                                                .clickable { viewModel.onRemovePhotoUrl(photoUrl) },
+                                                .clickable { viewModel.onEditRemovePhotoUrl(photoUrl) },
                                             shape = RoundedCornerShape(12.dp),
                                             color = Color(0xFFE53935)
                                         ) {
@@ -582,7 +562,6 @@ fun AddRoomScreen(
                                     }
                                 }
 
-                                // Kartu Tombol (+) Tambah dari Kamera
                                 Surface(
                                     modifier = Modifier
                                         .size(110.dp)
@@ -603,18 +582,10 @@ fun AddRoomScreen(
                                             modifier = Modifier.size(24.dp)
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "+ Kamera",
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                color = brandPurple,
-                                                fontSize = 11.sp
-                                            )
-                                        )
+                                        Text("+ Kamera", fontWeight = FontWeight.Bold, color = brandPurple, fontSize = 11.sp)
                                     }
                                 }
 
-                                // Kartu Tombol (+) Tambah dari Galeri
                                 Surface(
                                     modifier = Modifier
                                         .size(110.dp)
@@ -635,14 +606,7 @@ fun AddRoomScreen(
                                             modifier = Modifier.size(24.dp)
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "+ Galeri",
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                color = brandPurple,
-                                                fontSize = 11.sp
-                                            )
-                                        )
+                                        Text("+ Galeri", fontWeight = FontWeight.Bold, color = brandPurple, fontSize = 11.sp)
                                     }
                                 }
                             }
@@ -652,17 +616,15 @@ fun AddRoomScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Tombol Simpan Kamar
+                // Tombol Simpan Perubahan
                 Button(
-                    onClick = viewModel::addRoom,
+                    onClick = viewModel::updateRoom,
                     enabled = !uiState.isLoading,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = brandPurple
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = brandPurple)
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
@@ -672,7 +634,7 @@ fun AddRoomScreen(
                         )
                     } else {
                         Text(
-                            text = "Simpan Kamar",
+                            text = "Simpan Perubahan",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -686,103 +648,4 @@ fun AddRoomScreen(
     }
 }
 
-/**
- * Label dengan Asterisk Merah untuk Field Wajib
- */
-@Composable
-fun LabelWithAsterisk(label: String) {
-    val darkTitleColor = Color(0xFF2C1458)
-    Text(
-        text = buildAnnotatedString {
-            append(label)
-            withStyle(style = SpanStyle(color = Color(0xFFE53935), fontWeight = FontWeight.Bold)) {
-                append(" *")
-            }
-        },
-        style = MaterialTheme.typography.bodyMedium.copy(
-            fontWeight = FontWeight.SemiBold,
-            color = darkTitleColor,
-            fontSize = 14.sp
-        )
-    )
-}
 
-/**
- * Kartu Pilihan Segment Kategori (Kamar / Rumah)
- */
-@Composable
-fun CategorySelectCard(
-    title: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val brandPurple = Color(0xFF4C3BCE)
-    Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) brandPurple else Color(0xFFF0EFF6),
-        border = if (isSelected) BorderStroke(1.dp, brandPurple) else BorderStroke(1.dp, Color(0xFFEBEBF5))
-    ) {
-        Box(
-            modifier = Modifier.padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = if (isSelected) Color.White else Color(0xFF4A4A4A)
-                )
-            )
-        }
-    }
-}
-
-/**
- * Chip Kotak Fasilitas yang dapat di-silang (x) untuk dihapus
- */
-@Composable
-fun FacilityChip(
-    label: String,
-    onRemove: () -> Unit
-) {
-    val brandPurple = Color(0xFF4C3BCE)
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = Color(0xFFF4F2FF),
-        border = BorderStroke(1.dp, brandPurple.copy(alpha = 0.2f))
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    color = brandPurple
-                )
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Surface(
-                modifier = Modifier
-                    .size(18.dp)
-                    .clickable(onClick = onRemove),
-                shape = RoundedCornerShape(4.dp),
-                color = Color(0xFFFFEBEE)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Hapus $label",
-                        tint = Color(0xFFE53935),
-                        modifier = Modifier.size(12.dp)
-                    )
-                }
-            }
-        }
-    }
-}

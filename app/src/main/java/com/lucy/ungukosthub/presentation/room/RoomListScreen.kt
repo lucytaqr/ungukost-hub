@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -76,6 +77,7 @@ private fun formatPriceNumber(amount: Double): String {
 fun RoomListScreen(
     onNavigateBack: () -> Unit,
     onAddRoomClick: () -> Unit,
+    onRoomClick: (String) -> Unit = {},
     onNavigateToDashboard: () -> Unit = {},
     onNavigateToTenants: () -> Unit = {},
     onNavigateToFinance: () -> Unit = {},
@@ -321,7 +323,10 @@ fun RoomListScreen(
                             } else {
                                 Column {
                                     uiState.filteredRooms.forEachIndexed { index, room ->
-                                        RoomListItemRow(room = room)
+                                        RoomListItemRow(
+                                            room = room,
+                                            onClick = { onRoomClick(room.id.ifBlank { room.roomNumber }) }
+                                        )
                                         if (index < uiState.filteredRooms.size - 1) {
                                             HorizontalDivider(
                                                 color = Color(0xFFF2F2F7),
@@ -378,13 +383,17 @@ fun FilterChipItem(
  * Row item individual kamar dalam daftar
  */
 @Composable
-fun RoomListItemRow(room: Room) {
+fun RoomListItemRow(
+    room: Room,
+    onClick: () -> Unit = {}
+) {
     val purpleRoomColor = Color(0xFF3F2B96)
     val redRoomColor = Color(0xFFE53935)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -464,7 +473,9 @@ fun RoomListBottomNavigation(
     val inactiveColor = Color(0xFF8E8E93)
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
         color = Color.White,
         border = BorderStroke(1.dp, Color(0xFFEFEFEF)),
         shadowElevation = 8.dp

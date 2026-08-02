@@ -6,8 +6,13 @@ package com.lucy.ungukosthub.domain.model
 data class Tenant(
     val id: String = "",
     val name: String = "",
+    val origin: String = "",
+    val birthDate: String = "",
+    val phone: String = "",
     val emergencyContact: String = "",
     val roomId: String = "",
+    val roomNumber: String = "",
     val ktpUrl: String = "",
-    val entryDate: Long = 0L
+    val status: String = "Aktif",
+    val entryDate: Long = System.currentTimeMillis()
 )

@@ -75,6 +75,9 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
+    // Image Loading (Coil)
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -3,24 +3,34 @@ package com.lucy.ungukosthub.presentation.room
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,49 +42,160 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.lucy.ungukosthub.presentation.components.DetailTabItem
+import com.lucy.ungukosthub.presentation.components.InfoRow
+import com.lucy.ungukosthub.presentation.tenant.TenantViewModel
 import java.text.NumberFormat
 import java.util.Locale
 
 /**
- * Layar Detail Kamar (RoomDetailScreen) yang disesuaikan presisi dengan desain 03_room_detail.png
+ * Layar Detail Kamar (RoomDetailScreen)
+ * Memuat:
+ * 1. Tab Detail, Penghuni, dan Riwayat Sewa
+ * 2. Galeri Foto Kondisi Kamar asli dengan pratinjau zoom
+ * 3. Tombol Edit Kamar dan Hapus Kamar sejajar secara horizontal (Hanya di Tab Detail)
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RoomDetailScreen(
     roomId: String,
     onNavigateBack: () -> Unit,
     onEditRoomClick: () -> Unit = {},
-    viewModel: RoomViewModel = hiltViewModel()
+    viewModel: RoomViewModel = hiltViewModel(),
+    tenantViewModel: TenantViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.roomListState.collectAsState()
-    val room = uiState.rooms.find { it.id == roomId || it.roomNumber == roomId } ?: uiState.rooms.firstOrNull()
+    val roomListState by viewModel.roomListState.collectAsState()
+    val tenantListState by tenantViewModel.uiState.collectAsState()
+
+    val room = roomListState.rooms.find { it.id == roomId || it.roomNumber == roomId }
+        ?: roomListState.rooms.firstOrNull()
 
     val brandPurple = Color(0xFF4C3BCE)
     val darkTitleColor = Color(0xFF2C1458)
     val backgroundLight = Color(0xFFFBFBFD)
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    var isOccupied by remember(room) { mutableIntStateOf(if (room?.isOccupied == true) 1 else 0) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var selectedPreviewPhotoUrl by remember { mutableStateOf<String?>(null) }
 
-    val formatter = NumberFormat.getInstance(Locale("in", "ID"))
-    val formattedPrice = formatter.format(room?.price?.toLong() ?: 1200000)
+    val formattedPrice = remember(room?.price) {
+        val price = room?.price ?: 0.0
+        val format = NumberFormat.getNumberInstance(Locale("id", "ID"))
+        format.format(price)
+    }
+
+    val facilitiesList: List<String> = room?.facilities ?: emptyList()
+
+    // Ambil daftar foto kondisi kamar asli
+    val photosList: List<String> = remember(room) {
+        val list = mutableListOf<String>()
+        if (room?.photoUrls?.isNotEmpty() == true) {
+            list.addAll(room.photoUrls)
+        }
+        if (room?.photoUrl?.isNotBlank() == true && !list.contains(room.photoUrl)) {
+            list.add(0, room.photoUrl)
+        }
+        list
+    }
+
+    // Cari penghuni saat ini untuk kamar ini
+    val currentTenant = remember(tenantListState.tenants, room) {
+        tenantListState.tenants.find {
+            it.roomId == room?.id || it.roomId == room?.roomNumber || (room != null && it.roomNumber == room.roomNumber)
+        }
+    }
+
+    // Dialog Zoom Foto Kondisi Kamar
+    selectedPreviewPhotoUrl?.let { photoUrl ->
+        AlertDialog(
+            onDismissRequest = { selectedPreviewPhotoUrl = null },
+            title = { Text("Foto Kondisi Kamar", fontWeight = FontWeight.Bold, color = darkTitleColor) },
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(240.dp)
+                ) {
+                    AsyncImage(
+                        model = photoUrl,
+                        contentDescription = "Pratinjau Foto Kondisi",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedPreviewPhotoUrl = null }) {
+                    Text("Tutup", color = brandPurple, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    // Dialog Konfirmasi Hapus Kamar
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = {
+                Text(
+                    text = "Hapus Kamar?",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE53935),
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "Apakah Anda yakin ingin menghapus Kamar ${room?.roomNumber ?: roomId}? Data yang dihapus tidak dapat dikembalikan.",
+                    style = MaterialTheme.typography.bodyMedium.copy(color = darkTitleColor)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteRoom(
+                            roomId = room?.id ?: roomId,
+                            onSuccess = onNavigateBack
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))
+                ) {
+                    Text("Ya, Hapus", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Batal", color = Color(0xFF8E8E93), fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
 
     Scaffold(
+        modifier = Modifier.navigationBarsPadding(),
         topBar = {
             TopAppBar(
                 title = {
@@ -92,15 +213,6 @@ fun RoomDetailScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Kembali",
-                            tint = darkTitleColor
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* Actions */ }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Lainnya",
                             tint = darkTitleColor
                         )
                     }
@@ -124,7 +236,7 @@ fun RoomDetailScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Header Summary Card
+                // 1. Header Summary Card
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -139,25 +251,25 @@ fun RoomDetailScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = room?.roomNumber ?: "101",
+                                text = "Kamar ${room?.roomNumber ?: "101"}",
                                 style = MaterialTheme.typography.headlineLarge.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 28.sp,
+                                    fontSize = 26.sp,
                                     color = darkTitleColor
                                 )
                             )
 
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = if (isOccupied == 1) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                                color = if (room?.isOccupied == true) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
                             ) {
                                 Text(
-                                    text = if (isOccupied == 1) "Terisi" else "Kosong",
+                                    text = if (room?.isOccupied == true) "Terisi" else "Kosong",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp
                                     ),
-                                    color = if (isOccupied == 1) Color(0xFF2E7D32) else Color(0xFFC62828),
+                                    color = if (room?.isOccupied == true) Color(0xFF2E7D32) else Color(0xFFC62828),
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                 )
                             }
@@ -165,7 +277,7 @@ fun RoomDetailScreen(
 
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = room?.category ?: "AC • Kamar Mandi Dalam",
+                            text = "Kategori: ${room?.category ?: "Kamar"}",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF555555),
@@ -218,182 +330,373 @@ fun RoomDetailScreen(
                     }
                 }
 
-                // Section Informasi Kamar
-                Text(
-                    text = "Informasi Kamar",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = darkTitleColor
-                    )
-                )
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFEBEBF5))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        InfoRow(label = "Luas Kamar", value = "3 x 4 m")
-                        HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(vertical = 12.dp))
-                        InfoRow(label = "Fasilitas", value = "AC, Kasur, Lemari, Meja, WiFi")
-                        HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(vertical = 12.dp))
-                        InfoRow(label = "Status", value = if (isOccupied == 1) "Terisi" else "Kosong")
-                    }
-                }
-
-                // Section Foto Kondisi
-                Text(
-                    text = "Foto Kondisi",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = darkTitleColor
-                    )
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    PhotoBoxSample(modifier = Modifier.weight(1f))
-                    PhotoBoxSample(modifier = Modifier.weight(1f))
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(100.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFFE0E0E0)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "+2",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    color = darkTitleColor
-                                )
+                // 2. Tampilan Isi Sesuai Sub Tab
+                when (selectedTab) {
+                    0 -> {
+                        // TAB 0: DETAIL KAMAR & FOTO KONDISI
+                        Text(
+                            text = "Informasi Kamar",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = darkTitleColor
                             )
+                        )
+
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFEBEBF5))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                InfoRow(label = "Kategori Properti", value = room?.category ?: "Kamar")
+                                HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(vertical = 12.dp))
+                                InfoRow(label = "Harga Sewa", value = "Rp $formattedPrice / bulan")
+                                HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(vertical = 12.dp))
+                                InfoRow(label = "Status Ketersediaan", value = if (room?.isOccupied == true) "Terisi" else "Kosong")
+                                HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(vertical = 12.dp))
+
+                                Column {
+                                    Text(
+                                        text = "Fasilitas Kamar",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF8E8E93),
+                                            fontSize = 14.sp
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    if (facilitiesList.isEmpty()) {
+                                        Text(text = "-", color = Color(0xFF8E8E93), fontSize = 14.sp)
+                                    } else {
+                                        FlowRow(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            facilitiesList.forEach { facility ->
+                                                Surface(
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    color = Color(0xFFF4F2FF),
+                                                    border = BorderStroke(1.dp, brandPurple.copy(alpha = 0.2f))
+                                                ) {
+                                                    Text(
+                                                        text = facility,
+                                                        style = MaterialTheme.typography.bodySmall.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            fontSize = 12.sp,
+                                                            color = brandPurple
+                                                        ),
+                                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Section Foto Kondisi Kamar Asli
+                        Text(
+                            text = if (photosList.isNotEmpty()) "Foto Kondisi (${photosList.size})" else "Foto Kondisi",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = darkTitleColor
+                            )
+                        )
+
+                        if (photosList.isEmpty()) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(110.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFFF8F7FD),
+                                border = BorderStroke(1.dp, Color(0xFFEBEBF5))
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CameraAlt,
+                                        contentDescription = null,
+                                        tint = brandPurple,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Belum ada foto kondisi kamar",
+                                        style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF8E8E93))
+                                    )
+                                }
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                photosList.forEach { photoUrl ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(120.dp)
+                                            .clickable { selectedPreviewPhotoUrl = photoUrl }
+                                    ) {
+                                        AsyncImage(
+                                            model = photoUrl,
+                                            contentDescription = "Foto Kondisi Kamar",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(16.dp))
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Tombol Edit & Hapus Kamar Sejajar Horizontal (Hanya di Tab Detail)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = onEditRoomClick,
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = brandPurple),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(52.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Edit Kamar",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = Color.White
+                                        )
+                                    )
+                                }
+                            }
+
+                            OutlinedButton(
+                                onClick = { showDeleteDialog = true },
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(1.5.dp, Color(0xFFE53935)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(52.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Hapus",
+                                        tint = Color(0xFFE53935),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Hapus Kamar",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = Color(0xFFE53935)
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    1 -> {
+                        // TAB 1: PENGHUNI KAMAR SAAT INI
+                        Text(
+                            text = "Penghuni Kamar",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = darkTitleColor
+                            )
+                        )
+
+                        if (currentTenant != null) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, Color(0xFFEBEBF5))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = brandPurple.copy(alpha = 0.15f),
+                                            modifier = Modifier.size(52.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Person,
+                                                    contentDescription = null,
+                                                    tint = brandPurple,
+                                                    modifier = Modifier.size(30.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.width(14.dp))
+
+                                        Column {
+                                            Text(
+                                                text = currentTenant.name,
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 17.sp,
+                                                    color = darkTitleColor
+                                                )
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "No. HP: ${currentTenant.phone.ifBlank { currentTenant.emergencyContact }}",
+                                                style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF8E8E93))
+                                            )
+                                        }
+                                    }
+
+                                    HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(vertical = 12.dp))
+                                    InfoRow(label = "Tempat Asal", value = currentTenant.origin.ifBlank { "-" })
+                                    HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(vertical = 12.dp))
+                                    InfoRow(label = "Tanggal Lahir", value = currentTenant.birthDate.ifBlank { "-" })
+                                }
+                            }
+                        } else {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, Color(0xFFEBEBF5))
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(28.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PersonAdd,
+                                        contentDescription = null,
+                                        tint = brandPurple,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(
+                                        text = "Kamar Saat Ini Kosong",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = darkTitleColor
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Belum ada penghuni yang menempati kamar ini.",
+                                        style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF8E8E93))
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    2 -> {
+                        // TAB 2: RIWAYAT SEWA KAMAR
+                        Text(
+                            text = "Riwayat Sewa",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = darkTitleColor
+                            )
+                        )
+
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFEBEBF5))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                if (currentTenant != null) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = currentTenant.name,
+                                                style = MaterialTheme.typography.bodyLarge.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = darkTitleColor
+                                                )
+                                            )
+                                            Text(
+                                                text = "Sewa Aktif (Saat Ini)",
+                                                style = MaterialTheme.typography.bodySmall.copy(color = brandPurple)
+                                            )
+                                        }
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0xFFE8F5E9)
+                                        ) {
+                                            Text(
+                                                text = "Aktif",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF2E7D32)
+                                                ),
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.History,
+                                            contentDescription = null,
+                                            tint = Color(0xFF8E8E93),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Belum ada riwayat transaksi sewa sebelumnya.",
+                                            style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF8E8E93))
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Bottom Action Buttons (Edit Kamar & Ubah Status)
-                OutlinedButton(
-                    onClick = onEditRoomClick,
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.5.dp, brandPurple),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                ) {
-                    Text(
-                        text = "Edit Kamar",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = brandPurple
-                        )
-                    )
-                }
-
-                Button(
-                    onClick = { isOccupied = if (isOccupied == 1) 0 else 1 },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = brandPurple),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                ) {
-                    Text(
-                        text = "Ubah Status",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Color.White
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
             }
-        }
-    }
-}
-
-@Composable
-fun DetailTabItem(
-    label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val brandPurple = Color(0xFF4C3BCE)
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                fontSize = 14.sp,
-                color = if (isSelected) brandPurple else Color(0xFF8E8E93)
-            )
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        if (isSelected) {
-            Box(
-                modifier = Modifier
-                    .width(40.dp)
-                    .height(3.dp)
-                    .background(brandPurple, shape = RoundedCornerShape(2.dp))
-            )
-        }
-    }
-}
-
-@Composable
-fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF8E8E93),
-                fontSize = 14.sp
-            )
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF2C1458),
-                fontSize = 14.sp
-            )
-        )
-    }
-}
-
-@Composable
-fun PhotoBoxSample(modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.height(100.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = Color(0xFFECEBFA)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = Icons.Default.Home,
-                contentDescription = null,
-                tint = Color(0xFF4C3BCE).copy(alpha = 0.5f),
-                modifier = Modifier.size(36.dp)
-            )
         }
     }
 }

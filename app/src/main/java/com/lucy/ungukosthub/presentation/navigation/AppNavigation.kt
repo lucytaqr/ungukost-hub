@@ -16,9 +16,12 @@ import com.lucy.ungukosthub.presentation.finance.FinanceSummaryScreen
 import com.lucy.ungukosthub.presentation.finance.ReportsMenuScreen
 import com.lucy.ungukosthub.presentation.login.LoginScreen
 import com.lucy.ungukosthub.presentation.room.AddRoomScreen
+import com.lucy.ungukosthub.presentation.room.EditRoomScreen
 import com.lucy.ungukosthub.presentation.room.RoomDetailScreen
 import com.lucy.ungukosthub.presentation.room.RoomListScreen
 import com.lucy.ungukosthub.presentation.settings.SettingsScreen
+import com.lucy.ungukosthub.presentation.tenant.AddTenantScreen
+import com.lucy.ungukosthub.presentation.tenant.EditTenantScreen
 import com.lucy.ungukosthub.presentation.tenant.TenantDetailScreen
 import com.lucy.ungukosthub.presentation.tenant.TenantListScreen
 
@@ -74,6 +77,7 @@ fun AppNavigation(
             RoomListScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onAddRoomClick = { navController.navigate(Screen.AddRoom.route) },
+                onRoomClick = { roomId -> navController.navigate(Screen.RoomDetail.createRoute(roomId)) },
                 onNavigateToDashboard = { navController.navigate(Screen.Dashboard.route) },
                 onNavigateToTenants = { navController.navigate(Screen.TenantList.route) },
                 onNavigateToFinance = { navController.navigate(Screen.FinanceSummary.route) },
@@ -90,13 +94,25 @@ fun AppNavigation(
             RoomDetailScreen(
                 roomId = roomId,
                 onNavigateBack = { navController.popBackStack() },
-                onEditRoomClick = { navController.navigate(Screen.AddRoom.route) }
+                onEditRoomClick = { navController.navigate(Screen.EditRoom.createRoute(roomId)) }
             )
         }
 
         // 5. Add Room Route (04_room_add.png)
         composable(route = Screen.AddRoom.route) {
             AddRoomScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 5b. Edit Room Route
+        composable(
+            route = Screen.EditRoom.route,
+            arguments = listOf(navArgument("roomId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val roomId = backStackEntry.arguments?.getString("roomId") ?: "101"
+            EditRoomScreen(
+                roomId = roomId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -108,6 +124,7 @@ fun AppNavigation(
                 onTenantClick = { tenantId ->
                     navController.navigate(Screen.TenantDetail.createRoute(tenantId))
                 },
+                onAddTenantClick = { navController.navigate(Screen.AddTenant.route) },
                 onNavigateToDashboard = { navController.navigate(Screen.Dashboard.route) },
                 onNavigateToRooms = { navController.navigate(Screen.RoomList.route) },
                 onNavigateToFinance = { navController.navigate(Screen.FinanceSummary.route) },
@@ -115,13 +132,35 @@ fun AppNavigation(
             )
         }
 
-        // 7. Tenant Detail Route (06_tenant_detail.png)
+        // 7. Add Tenant Route
+        composable(route = Screen.AddTenant.route) {
+            AddTenantScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // 8. Tenant Detail Route (06_tenant_detail.png)
         composable(
             route = Screen.TenantDetail.route,
             arguments = listOf(navArgument("tenantId") { type = NavType.StringType })
         ) { backStackEntry ->
             val tenantId = backStackEntry.arguments?.getString("tenantId") ?: "1"
             TenantDetailScreen(
+                tenantId = tenantId,
+                onNavigateBack = { navController.popBackStack() },
+                onEditTenantClick = { id ->
+                    navController.navigate(Screen.EditTenant.createRoute(id))
+                }
+            )
+        }
+
+        // 9. Edit Tenant Route
+        composable(
+            route = Screen.EditTenant.route,
+            arguments = listOf(navArgument("tenantId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val tenantId = backStackEntry.arguments?.getString("tenantId") ?: "1"
+            EditTenantScreen(
                 tenantId = tenantId,
                 onNavigateBack = { navController.popBackStack() }
             )

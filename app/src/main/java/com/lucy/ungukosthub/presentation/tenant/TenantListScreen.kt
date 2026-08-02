@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -60,6 +62,7 @@ import com.lucy.ungukosthub.presentation.dashboard.DashboardBottomNavigation
 fun TenantListScreen(
     onNavigateBack: () -> Unit,
     onTenantClick: (String) -> Unit,
+    onAddTenantClick: () -> Unit = {},
     onNavigateToDashboard: () -> Unit = {},
     onNavigateToRooms: () -> Unit = {},
     onNavigateToFinance: () -> Unit = {},
@@ -200,7 +203,7 @@ fun TenantListScreen(
                             contentAlignment = Alignment.CenterEnd
                         ) {
                             Button(
-                                onClick = { /* Add Tenant */ },
+                                onClick = onAddTenantClick,
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = brandPurple)
                             ) {
@@ -234,18 +237,66 @@ fun TenantListScreen(
                             border = BorderStroke(1.dp, Color(0xFFEBEBF5)),
                             shadowElevation = 0.5.dp
                         ) {
-                            Column {
-                                uiState.filteredTenants.forEachIndexed { index, tenant ->
-                                    TenantRowItem(
-                                        tenant = tenant,
-                                        onClick = { onTenantClick(tenant.id) }
-                                    )
-                                    if (index < uiState.filteredTenants.size - 1) {
-                                        HorizontalDivider(
-                                            color = Color(0xFFF2F2F7),
-                                            thickness = 1.dp,
-                                            modifier = Modifier.padding(horizontal = 16.dp)
+                            if (uiState.filteredTenants.isEmpty()) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = Color(0xFFF4F2FF),
+                                        modifier = Modifier.size(72.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.PersonOff,
+                                                contentDescription = null,
+                                                tint = brandPurple,
+                                                modifier = Modifier.size(36.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    Text(
+                                        text = "Belum Ada Data Penghuni",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 17.sp,
+                                            color = Color(0xFF2C1458)
                                         )
+                                    )
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Text(
+                                        text = "Silakan klik tombol \"Tambah Penghuni\" di atas untuk menambahkan data penghuni kost baru.",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF8E8E93),
+                                            lineHeight = 18.sp
+                                        ),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            } else {
+                                Column {
+                                    uiState.filteredTenants.forEachIndexed { index, tenant ->
+                                        TenantRowItem(
+                                            tenant = tenant,
+                                            onClick = { onTenantClick(tenant.id) }
+                                        )
+                                        if (index < uiState.filteredTenants.size - 1) {
+                                            HorizontalDivider(
+                                                color = Color(0xFFF2F2F7),
+                                                thickness = 1.dp,
+                                                modifier = Modifier.padding(horizontal = 16.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -302,8 +353,9 @@ fun TenantRowItem(
                     )
                 )
                 Spacer(modifier = Modifier.height(2.dp))
+                val displayRoom = tenant.roomNumber.ifBlank { tenant.roomId }
                 Text(
-                    text = "Kamar ${tenant.roomId}",
+                    text = if (displayRoom.startsWith("Kamar", ignoreCase = true)) displayRoom else "Kamar $displayRoom",
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontWeight = FontWeight.Medium,
                         fontSize = 13.sp,
