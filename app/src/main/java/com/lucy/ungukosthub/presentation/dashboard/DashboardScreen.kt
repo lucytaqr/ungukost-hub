@@ -23,19 +23,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -98,7 +95,7 @@ private fun sendWhatsAppReminderMessage(
 }
 
 /**
- * Layar Dashboard Utama: 3 Card Ringkasan (Total Kamar, Terisi, Kosong), Real Income, & Button WhatsApp "Kirim"
+ * Layar Dashboard Utama: 3 Card Ringkasan (Total Kamar, Terisi, Kosong), Real Income & Real Bar Chart Data
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,7 +112,6 @@ fun DashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     val brandPurple = Color(0xFF4C3BCE)
-    val whatsappGreen = Color(0xFF25D366)
     val darkTitleColor = Color(0xFF2C1458)
     val backgroundLight = Color(0xFFFBFBFD)
 
@@ -124,23 +120,13 @@ fun DashboardScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Halo, ${uiState.currentUser?.displayName?.split(" ")?.firstOrNull() ?: "Admin"} 👋",
+                        text = "Halo, Admin 👋",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
                             color = darkTitleColor
                         )
                     )
-                },
-                actions = {
-                    IconButton(onClick = { /* Notifications */ }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Notifications,
-                            contentDescription = "Notifikasi",
-                            tint = darkTitleColor,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.White
@@ -266,7 +252,7 @@ fun DashboardScreen(
                         }
                     }
 
-                    // 3. Pendapatan Bulan Ini (Data Real) & Bar Chart Card
+                    // 3. Pendapatan Bulan Ini (Data Real) & Bar Chart Card Real Data
                     item {
                         Surface(
                             modifier = Modifier
@@ -320,8 +306,11 @@ fun DashboardScreen(
 
                                 Spacer(modifier = Modifier.height(20.dp))
 
-                                // Visual Bar Chart
-                                MonthlyBarChart()
+                                // Real Data Bar Chart
+                                MonthlyBarChart(
+                                    labels = uiState.monthlyChartLabels,
+                                    incomeValues = uiState.monthlyChartIncome
+                                )
                             }
                         }
                     }
@@ -363,7 +352,7 @@ fun DashboardScreen(
                                         Icon(
                                             imageVector = Icons.Outlined.ReceiptLong,
                                             contentDescription = null,
-                                            tint = whatsappGreen,
+                                            tint = brandPurple,
                                             modifier = Modifier.size(36.dp)
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
@@ -410,16 +399,15 @@ fun DashboardScreen(
 }
 
 /**
- * Kartu Item Pengingat Tagihan Sewa via WhatsApp dengan Tombol {Logo WhatsApp} Kirim
+ * Kartu Item Pengingat Tagihan Sewa via WhatsApp dengan Tombol {Icon WhatsApp} Kirim
  */
 @Composable
 fun BillReminderCard(
     reminder: TenantBillReminder,
     onSendWhatsApp: () -> Unit
 ) {
-    val whatsappGreen = Color(0xFF25D366)
-    val darkTitleColor = Color(0xFF2C1458)
     val brandPurple = Color(0xFF4C3BCE)
+    val darkTitleColor = Color(0xFF2C1458)
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -482,13 +470,13 @@ fun BillReminderCard(
             Button(
                 onClick = onSendWhatsApp,
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = whatsappGreen)
+                colors = ButtonDefaults.buttonColors(containerColor = brandPurple)
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Message,
+                    painter = painterResource(id = R.drawable.ic__baseline_whatsapp),
                     contentDescription = "WhatsApp",
                     tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
@@ -546,13 +534,22 @@ fun StatMiniCard(
 }
 
 /**
- * Visual Bar Chart Pendapatan 6 Bulan
+ * Visual Bar Chart Pendapatan 6 Bulan Real Data
  */
 @Composable
-fun MonthlyBarChart() {
+fun MonthlyBarChart(
+    labels: List<String> = listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun"),
+    incomeValues: List<Double> = emptyList()
+) {
     val brandPurple = Color(0xFF4C3BCE)
-    val months = listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun")
-    val heights = listOf(0.45f, 0.85f, 0.75f, 0.55f, 0.8f, 0.95f)
+    val displayLabels = labels.ifEmpty { listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun") }
+
+    val maxVal = incomeValues.maxOrNull()?.takeIf { it > 0 } ?: 1.0
+    val heights = if (incomeValues.isNotEmpty()) {
+        incomeValues.map { ((it / maxVal) * 0.85).coerceIn(0.12, 0.95).toFloat() }
+    } else {
+        listOf(0.45f, 0.65f, 0.75f, 0.55f, 0.8f, 0.95f)
+    }
 
     Row(
         modifier = Modifier
@@ -561,7 +558,8 @@ fun MonthlyBarChart() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom
     ) {
-        months.forEachIndexed { index, month ->
+        displayLabels.forEachIndexed { index, month ->
+            val h = heights.getOrElse(index) { 0.45f }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom,
@@ -570,7 +568,7 @@ fun MonthlyBarChart() {
                 Box(
                     modifier = Modifier
                         .width(16.dp)
-                        .fillMaxHeight(heights[index])
+                        .fillMaxHeight(h)
                         .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
                         .background(brandPurple)
                 )
@@ -588,7 +586,7 @@ fun MonthlyBarChart() {
 }
 
 /**
- * Dashboard Bottom Navigation Bar
+ * Dashboard Bottom Navigation Bar (dengan icon Kamar @drawable/mdi__bedroom)
  */
 @Composable
 fun DashboardBottomNavigation(
@@ -622,7 +620,7 @@ fun DashboardBottomNavigation(
                 onClick = { onTabSelected(0) }
             )
             BottomNavItem(
-                icon = Icons.Default.Home,
+                drawableResId = R.drawable.mdi__bedroom,
                 label = "Kamar",
                 isSelected = activeTab == 1,
                 activeColor = brandPurple,

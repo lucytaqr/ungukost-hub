@@ -36,6 +36,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.res.painterResource
+import com.lucy.ungukosthub.R
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -496,7 +498,7 @@ fun RoomListBottomNavigation(
                 onClick = { onTabSelected(0) }
             )
             BottomNavItem(
-                icon = Icons.Default.Home, // Represents Kamar/Room
+                drawableResId = R.drawable.mdi__bedroom,
                 label = "Kamar",
                 isSelected = activeTab == 1,
                 activeColor = brandPurple,
@@ -533,7 +535,8 @@ fun RoomListBottomNavigation(
 
 @Composable
 fun BottomNavItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    drawableResId: Int? = null,
     label: String,
     isSelected: Boolean,
     activeColor: Color,
@@ -547,12 +550,21 @@ fun BottomNavItem(
             .padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = tint,
-            modifier = Modifier.size(24.dp)
-        )
+        if (drawableResId != null) {
+            Icon(
+                painter = painterResource(id = drawableResId),
+                contentDescription = label,
+                tint = tint,
+                modifier = Modifier.size(24.dp)
+            )
+        } else if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = tint,
+                modifier = Modifier.size(24.dp)
+            )
+        }
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = label,

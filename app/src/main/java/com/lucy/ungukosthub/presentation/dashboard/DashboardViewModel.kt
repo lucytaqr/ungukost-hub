@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
@@ -39,6 +40,8 @@ data class DashboardUiState(
     val targetPendapatan: Double = 0.0,
     val billReminders: List<TenantBillReminder> = emptyList(),
     val kamarList: List<Room> = emptyList(),
+    val monthlyChartLabels: List<String> = emptyList(),
+    val monthlyChartIncome: List<Double> = emptyList(),
     val errorMessage: String? = null
 )
 
@@ -90,7 +93,7 @@ class DashboardViewModel @Inject constructor(
             }
             val emptyCount = (rooms.size - occupiedCount).coerceAtLeast(0)
 
-            // Hitung pendapatan bulan ini dari transaksi Firestore (atau estimasi sewa kamar terisi jika belum ada transaksi)
+            // Hitung pendapatan bulan ini dari transaksi Firestore (atau sewa kamar terisi jika belum ada transaksi)
             val currentMonthIncomeTransactions = transactions
                 .filter { it.type == TransactionType.INCOME && formatMonthYear(it.timestamp) == currentMonthStr }
                 .sumOf { it.amount }
@@ -106,6 +109,29 @@ class DashboardViewModel @Inject constructor(
             }
 
             val totalPossibleTarget = rooms.sumOf { it.price }
+
+            // Build 6 Bulan Terakhir untuk Grafik Pendapatan Real
+            val cal = Calendar.getInstance()
+            val monthLabels = mutableListOf<String>()
+            val monthIncomeValues = mutableListOf<Double>()
+            val shortMonthFormat = SimpleDateFormat("MMM", Locale("id", "ID"))
+            val fullMonthFormat = SimpleDateFormat("MMMM yyyy", Locale("id", "ID"))
+
+            // Ambil 6 bulan terakhir ke belakang hingga bulan ini
+            for (i in 5 downTo 0) {
+                val tempCal = Calendar.getInstance().apply {
+                    add(Calendar.MONTH, -i)
+                }
+                val label = shortMonthFormat.format(tempCal.time)
+                val fullKey = fullMonthFormat.format(tempCal.time)
+
+                val monthIncome = transactions
+                    .filter { it.type == TransactionType.INCOME && formatMonthYear(it.timestamp) == fullKey }
+                    .sumOf { it.amount }
+
+                monthLabels.add(label)
+                monthIncomeValues.add(monthIncome)
+            }
 
             // Build Bill Reminders list for active tenants
             val reminders = tenants.map { tenant ->
@@ -132,7 +158,9 @@ class DashboardViewModel @Inject constructor(
                 totalEstimasiPendapatan = realMonthIncome,
                 targetPendapatan = if (totalPossibleTarget > 0) totalPossibleTarget else 30000000.0,
                 kamarList = rooms,
-                billReminders = reminders
+                billReminders = reminders,
+                monthlyChartLabels = monthLabels,
+                monthlyChartIncome = monthIncomeValues
             )
         }.launchIn(viewModelScope)
     }
