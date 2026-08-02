@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Message
@@ -99,7 +98,7 @@ private fun sendWhatsAppReminderMessage(
 }
 
 /**
- * Layar Dashboard Utama tanpa Aksi Cepat, diganti dengan Pengingat Tagihan WhatsApp
+ * Layar Dashboard Utama: 3 Card Ringkasan (Total Kamar, Terisi, Kosong), Real Income, & Button WhatsApp "Kirim"
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -235,7 +234,7 @@ fun DashboardScreen(
                         }
                     }
 
-                    // 2. Stat Summary Cards (Total Kamar, Terisi, Kosong, Tagihan Pembayaran)
+                    // 2. 3 Stat Summary Cards (Total Kamar, Terisi, Kosong)
                     item {
                         Row(
                             modifier = Modifier
@@ -264,17 +263,10 @@ fun DashboardScreen(
                                 containerColor = Color(0xFFF7F7FA),
                                 modifier = Modifier.weight(1f)
                             )
-                            StatMiniCard(
-                                value = "${uiState.billReminders.size}",
-                                label = "Penghuni",
-                                valueColor = Color(0xFF25D366),
-                                containerColor = Color(0xFFE8F8F0),
-                                modifier = Modifier.weight(1f)
-                            )
                         }
                     }
 
-                    // 3. Pendapatan Bulan Ini & Bar Chart Card
+                    // 3. Pendapatan Bulan Ini (Data Real) & Bar Chart Card
                     item {
                         Surface(
                             modifier = Modifier
@@ -334,7 +326,7 @@ fun DashboardScreen(
                         }
                     }
 
-                    // 4. Section List Pengingat Tagihan WhatsApp (Menggantikan Aksi Cepat)
+                    // 4. Section List Pengingat Tagihan WhatsApp
                     item {
                         Column(
                             modifier = Modifier
@@ -418,7 +410,7 @@ fun DashboardScreen(
 }
 
 /**
- * Kartu Item Pengingat Tagihan Sewa via WhatsApp
+ * Kartu Item Pengingat Tagihan Sewa via WhatsApp dengan Tombol {Logo WhatsApp} Kirim
  */
 @Composable
 fun BillReminderCard(
@@ -500,8 +492,8 @@ fun BillReminderCard(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Kirim WA",
-                    fontSize = 12.sp,
+                    text = "Kirim",
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
@@ -511,7 +503,7 @@ fun BillReminderCard(
 }
 
 /**
- * Mini Card Stat untuk 4 angka di Dashboard
+ * Mini Card Stat untuk 3 angka di Dashboard (Total Kamar, Terisi, Kosong)
  */
 @Composable
 fun StatMiniCard(

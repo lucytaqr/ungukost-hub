@@ -3,17 +3,21 @@ package com.lucy.ungukosthub.presentation.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lucy.ungukosthub.domain.model.Room
-import com.lucy.ungukosthub.domain.model.Tenant
+import com.lucy.ungukosthub.domain.model.TransactionType
 import com.lucy.ungukosthub.domain.model.User
 import com.lucy.ungukosthub.domain.repository.AuthRepository
 import com.lucy.ungukosthub.domain.repository.RoomRepository
 import com.lucy.ungukosthub.domain.repository.TenantRepository
+import com.lucy.ungukosthub.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 data class TenantBillReminder(
@@ -42,7 +46,8 @@ data class DashboardUiState(
 class DashboardViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val roomRepository: RoomRepository,
-    private val tenantRepository: TenantRepository
+    private val tenantRepository: TenantRepository,
+    private val transactionRepository: TransactionRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -50,6 +55,13 @@ class DashboardViewModel @Inject constructor(
 
     init {
         loadDashboardData()
+    }
+
+    private fun formatMonthYear(timestamp: Long): String {
+        if (timestamp <= 0) return ""
+        val date = Date(timestamp)
+        val format = SimpleDateFormat("MMMM yyyy", Locale("id", "ID"))
+        return format.format(date)
     }
 
     private fun loadDashboardData() {
@@ -62,21 +74,36 @@ class DashboardViewModel @Inject constructor(
 
         _uiState.value = _uiState.value.copy(currentUser = user, isLoading = true)
 
+        val currentMonthStr = formatMonthYear(System.currentTimeMillis())
+
         combine(
             roomRepository.getRooms(),
-            tenantRepository.getTenants()
-        ) { roomsRes, tenantsRes ->
+            tenantRepository.getTenants(),
+            transactionRepository.getTransactions()
+        ) { roomsRes, tenantsRes, transactionsRes ->
             val rooms = roomsRes.data ?: emptyList()
             val tenants = tenantsRes.data ?: emptyList()
+            val transactions = transactionsRes.data ?: emptyList()
 
             val occupiedCount = rooms.count { room ->
                 tenants.any { t -> t.roomId == room.id || t.roomNumber == room.roomNumber }
             }
             val emptyCount = (rooms.size - occupiedCount).coerceAtLeast(0)
 
-            val totalIncomeEstimate = rooms.filter { room ->
+            // Hitung pendapatan bulan ini dari transaksi Firestore (atau estimasi sewa kamar terisi jika belum ada transaksi)
+            val currentMonthIncomeTransactions = transactions
+                .filter { it.type == TransactionType.INCOME && formatMonthYear(it.timestamp) == currentMonthStr }
+                .sumOf { it.amount }
+
+            val totalOccupiedRoomValue = rooms.filter { room ->
                 tenants.any { t -> t.roomId == room.id || t.roomNumber == room.roomNumber }
             }.sumOf { it.price }
+
+            val realMonthIncome = if (currentMonthIncomeTransactions > 0) {
+                currentMonthIncomeTransactions
+            } else {
+                totalOccupiedRoomValue
+            }
 
             val totalPossibleTarget = rooms.sumOf { it.price }
 
@@ -102,7 +129,7 @@ class DashboardViewModel @Inject constructor(
                 totalKamar = rooms.size,
                 totalTerisi = occupiedCount,
                 totalKosong = emptyCount,
-                totalEstimasiPendapatan = totalIncomeEstimate,
+                totalEstimasiPendapatan = realMonthIncome,
                 targetPendapatan = if (totalPossibleTarget > 0) totalPossibleTarget else 30000000.0,
                 kamarList = rooms,
                 billReminders = reminders
