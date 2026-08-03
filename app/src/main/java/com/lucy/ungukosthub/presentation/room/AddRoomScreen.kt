@@ -3,6 +3,7 @@ package com.lucy.ungukosthub.presentation.room
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -57,7 +59,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -147,6 +151,52 @@ fun AddRoomScreen(
         }
     }
 
+    var showUnsavedDialog by remember { mutableStateOf(false) }
+
+    val isFormDirty = remember(uiState) {
+        uiState.roomNumberInput.isNotBlank() ||
+        uiState.priceInput.isNotBlank() ||
+        uiState.photoUrlsList.isNotEmpty() ||
+        uiState.facilitiesList.isNotEmpty()
+    }
+
+    BackHandler(enabled = isFormDirty) {
+        showUnsavedDialog = true
+    }
+
+    val handleBack = {
+        if (isFormDirty) {
+            showUnsavedDialog = true
+        } else {
+            onNavigateBack()
+        }
+    }
+
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false },
+            title = { Text("Batalkan Pengisian Form?", fontWeight = FontWeight.Bold, color = Color(0xFFE53935)) },
+            text = { Text("Perubahan yang Anda masukkan belum disimpan. Apakah Anda yakin ingin keluar?", color = darkTitleColor) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showUnsavedDialog = false
+                        viewModel.resetAddRoomState()
+                        onNavigateBack()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))
+                ) {
+                    Text("Ya, Keluar", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnsavedDialog = false }) {
+                    Text("Batal", color = Color(0xFF8E8E93), fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.navigationBarsPadding(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -163,7 +213,7 @@ fun AddRoomScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = handleBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Kembali",

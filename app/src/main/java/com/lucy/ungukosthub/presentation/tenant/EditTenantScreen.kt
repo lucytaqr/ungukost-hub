@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -31,10 +32,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -152,6 +155,41 @@ fun EditTenantScreen(
         }
     }
 
+    var showUnsavedDialog by remember { mutableStateOf(false) }
+
+    BackHandler {
+        showUnsavedDialog = true
+    }
+
+    val handleBack = {
+        showUnsavedDialog = true
+    }
+
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false },
+            title = { Text("Batalkan Edit Form?", fontWeight = FontWeight.Bold, color = Color(0xFFE53935)) },
+            text = { Text("Perubahan yang Anda masukkan belum disimpan. Apakah Anda yakin ingin keluar?", color = darkTitleColor) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showUnsavedDialog = false
+                        viewModel.resetEditTenantState()
+                        onNavigateBack()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))
+                ) {
+                    Text("Ya, Keluar", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnsavedDialog = false }) {
+                    Text("Batal", color = Color(0xFF8E8E93), fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.navigationBarsPadding(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -168,7 +206,7 @@ fun EditTenantScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = handleBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Kembali",
@@ -433,9 +471,16 @@ fun EditTenantScreen(
                             }
                         }
 
-                        // 4. No. HP *
+                        // 4. No. HP (Opsional)
                         Column {
-                            LabelWithAsterisk(label = "No. HP")
+                            Text(
+                                text = "No. HP (Opsional)",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = darkTitleColor,
+                                    fontSize = 14.sp
+                                )
+                            )
                             Spacer(modifier = Modifier.height(6.dp))
                             OutlinedTextField(
                                 value = editState.phoneInput,

@@ -101,10 +101,11 @@ class TenantViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(isLoading = true)
                 }
                 is Resource.Success -> {
-                    val list = result.data ?: emptyList()
+                    val rawList = result.data ?: emptyList()
+                    val sortedList = rawList.sortedBy { it.name.lowercase() }
                     _uiState.value = _uiState.value.copy(
-                        tenants = list,
-                        filteredTenants = list,
+                        tenants = sortedList,
+                        filteredTenants = sortedList,
                         isLoading = false,
                         errorMessage = null
                     )
@@ -112,7 +113,7 @@ class TenantViewModel @Inject constructor(
                     // Auto-populate edit state if waiting for data
                     val pendingId = _editTenantState.value.tenantId
                     if (pendingId.isNotBlank() && _editTenantState.value.nameInput.isBlank()) {
-                        val t = list.find { it.id == pendingId }
+                        val t = sortedList.find { it.id == pendingId }
                         if (t != null) {
                             _editTenantState.value = EditTenantUiState(
                                 tenantId = t.id,
@@ -148,7 +149,7 @@ class TenantViewModel @Inject constructor(
                     it.roomId.contains(query, ignoreCase = true) ||
                     it.roomNumber.contains(query, ignoreCase = true) ||
                     it.origin.contains(query, ignoreCase = true)
-        }
+        }.sortedBy { it.name.lowercase() }
         _uiState.value = _uiState.value.copy(searchQuery = query, filteredTenants = filtered)
     }
 
@@ -167,10 +168,6 @@ class TenantViewModel @Inject constructor(
         val state = _addTenantState.value
         if (state.nameInput.isBlank()) {
             _addTenantState.value = state.copy(errorMessage = "Nama Lengkap tidak boleh kosong")
-            return
-        }
-        if (state.phoneInput.isBlank()) {
-            _addTenantState.value = state.copy(errorMessage = "No. HP tidak boleh kosong")
             return
         }
         if (state.roomNumberInput.isBlank() && state.roomIdInput.isBlank()) {
@@ -199,7 +196,7 @@ class TenantViewModel @Inject constructor(
             )
 
             tenantRepository.addTenant(newTenant)
-            val updated = _uiState.value.tenants + newTenant
+            val updated = (_uiState.value.tenants + newTenant).sortedBy { it.name.lowercase() }
             _uiState.value = _uiState.value.copy(tenants = updated, filteredTenants = updated)
 
             // Sync room occupancy status based on exit date
@@ -308,10 +305,6 @@ class TenantViewModel @Inject constructor(
             _editTenantState.value = state.copy(errorMessage = "Nama Lengkap tidak boleh kosong")
             return
         }
-        if (state.phoneInput.isBlank()) {
-            _editTenantState.value = state.copy(errorMessage = "No. HP tidak boleh kosong")
-            return
-        }
 
         viewModelScope.launch {
             _editTenantState.value = state.copy(isLoading = true, errorMessage = null)
@@ -339,7 +332,7 @@ class TenantViewModel @Inject constructor(
             tenantRepository.updateTenant(updatedTenant)
             val updatedList = _uiState.value.tenants.map {
                 if (it.id == state.tenantId) updatedTenant else it
-            }
+            }.sortedBy { it.name.lowercase() }
             _uiState.value = _uiState.value.copy(tenants = updatedList, filteredTenants = updatedList)
 
             // Update old room if changed
@@ -385,7 +378,7 @@ class TenantViewModel @Inject constructor(
             val roomKey = oldTenant?.roomId?.ifBlank { oldTenant.roomNumber } ?: ""
 
             tenantRepository.deleteTenant(tenantId)
-            val updated = _uiState.value.tenants.filter { it.id != tenantId }
+            val updated = _uiState.value.tenants.filter { it.id != tenantId }.sortedBy { it.name.lowercase() }
             _uiState.value = _uiState.value.copy(tenants = updated, filteredTenants = updated)
 
             if (roomKey.isNotBlank()) {

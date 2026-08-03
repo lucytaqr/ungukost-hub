@@ -363,7 +363,7 @@ fun TenantRowItem(
                     )
                 )
                 Text(
-                    text = tenant.emergencyContact,
+                    text = "Asal: ${tenant.origin.ifBlank { "-" }}",
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontSize = 12.sp,
                         color = Color(0xFF8E8E93)

@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -42,8 +44,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -170,6 +175,49 @@ fun AddIncomeScreen(
         )
     }
 
+    var showUnsavedDialog by remember { mutableStateOf(false) }
+
+    val isFormDirty = remember(tenantInput, amountInput, dateInput, noteInput, proofPhotoUrl) {
+        tenantInput.isNotBlank() || amountInput.isNotBlank() || noteInput.isNotBlank() || proofPhotoUrl.isNotBlank()
+    }
+
+    BackHandler(enabled = isFormDirty) {
+        showUnsavedDialog = true
+    }
+
+    val handleBack = {
+        if (isFormDirty) {
+            showUnsavedDialog = true
+        } else {
+            onNavigateBack()
+        }
+    }
+
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false },
+            title = { Text("Batalkan Pengisian Form?", fontWeight = FontWeight.Bold, color = Color(0xFFE53935)) },
+            text = { Text("Perubahan yang Anda masukkan belum disimpan. Apakah Anda yakin ingin keluar?", color = darkTitleColor) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showUnsavedDialog = false
+                        viewModel.resetSuccess()
+                        onNavigateBack()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))
+                ) {
+                    Text("Ya, Keluar", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnsavedDialog = false }) {
+                    Text("Batal", color = Color(0xFF8E8E93), fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.navigationBarsPadding(),
         topBar = {
@@ -185,7 +233,7 @@ fun AddIncomeScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = handleBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Kembali",

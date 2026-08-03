@@ -118,9 +118,9 @@ fun RoomDetailScreen(
         list
     }
 
-    // Cari penghuni saat ini untuk kamar ini
-    val currentTenant = remember(tenantListState.tenants, room) {
-        tenantListState.tenants.find {
+    // Cari daftar seluruh penghuni saat ini untuk kamar / rumah ini
+    val currentTenants = remember(tenantListState.tenants, room) {
+        tenantListState.tenants.filter {
             it.roomId == room?.id || it.roomId == room?.roomNumber || (room != null && it.roomNumber == room.roomNumber)
         }
     }
@@ -524,9 +524,9 @@ fun RoomDetailScreen(
                     }
 
                     1 -> {
-                        // TAB 1: PENGHUNI KAMAR SAAT INI
+                        // TAB 1: PENGHUNI KAMAR SAAT INI (Mendukung Lebih dari 1 Penghuni)
                         Text(
-                            text = "Penghuni Kamar",
+                            text = if (currentTenants.size > 1) "Daftar Penghuni (${currentTenants.size})" else "Penghuni Saat Ini",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
@@ -534,53 +534,63 @@ fun RoomDetailScreen(
                             )
                         )
 
-                        if (currentTenant != null) {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFEBEBF5))
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = brandPurple.copy(alpha = 0.15f),
-                                            modifier = Modifier.size(52.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Person,
-                                                    contentDescription = null,
-                                                    tint = brandPurple,
-                                                    modifier = Modifier.size(30.dp)
-                                                )
+                        if (currentTenants.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                currentTenants.forEach { occupant ->
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = Color.White,
+                                        border = BorderStroke(1.dp, Color(0xFFEBEBF5))
+                                    ) {
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    color = brandPurple.copy(alpha = 0.15f),
+                                                    modifier = Modifier.size(52.dp)
+                                                ) {
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Person,
+                                                            contentDescription = null,
+                                                            tint = brandPurple,
+                                                            modifier = Modifier.size(30.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                Spacer(modifier = Modifier.width(14.dp))
+
+                                                Column {
+                                                    Text(
+                                                        text = occupant.name,
+                                                        style = MaterialTheme.typography.titleMedium.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            fontSize = 17.sp,
+                                                            color = darkTitleColor
+                                                        )
+                                                    )
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(
+                                                        text = "Asal: ${occupant.origin.ifBlank { "-" }}",
+                                                        style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF555555))
+                                                    )
+                                                    if (occupant.phone.isNotBlank()) {
+                                                        Text(
+                                                            text = "No. HP: ${occupant.phone}",
+                                                            style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF8E8E93))
+                                                        )
+                                                    }
+                                                }
                                             }
-                                        }
 
-                                        Spacer(modifier = Modifier.width(14.dp))
-
-                                        Column {
-                                            Text(
-                                                text = currentTenant.name,
-                                                style = MaterialTheme.typography.titleMedium.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 17.sp,
-                                                    color = darkTitleColor
-                                                )
-                                            )
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(
-                                                text = "No. HP: ${currentTenant.phone.ifBlank { currentTenant.emergencyContact }}",
-                                                style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF8E8E93))
-                                            )
+                                            HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(vertical = 12.dp))
+                                            InfoRow(label = "Tanggal Masuk", value = occupant.entryDateText.ifBlank { "-" })
+                                            HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(vertical = 12.dp))
+                                            InfoRow(label = "Tanggal Keluar", value = occupant.exitDateText.ifBlank { "Belum Ditentukan" })
                                         }
                                     }
-
-                                    HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(vertical = 12.dp))
-                                    InfoRow(label = "Tempat Asal", value = currentTenant.origin.ifBlank { "-" })
-                                    HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(vertical = 12.dp))
-                                    InfoRow(label = "Tanggal Lahir", value = currentTenant.birthDate.ifBlank { "-" })
                                 }
                             }
                         } else {
@@ -604,7 +614,7 @@ fun RoomDetailScreen(
                                     )
                                     Spacer(modifier = Modifier.height(10.dp))
                                     Text(
-                                        text = "Kamar Saat Ini Kosong",
+                                        text = "Kamar / Rumah Saat Ini Kosong",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = darkTitleColor
@@ -612,7 +622,7 @@ fun RoomDetailScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Belum ada penghuni yang menempati kamar ini.",
+                                        text = "Belum ada penghuni yang menempati unit ini.",
                                         style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF8E8E93))
                                     )
                                 }
@@ -621,7 +631,7 @@ fun RoomDetailScreen(
                     }
 
                     2 -> {
-                        // TAB 2: RIWAYAT SEWA KAMAR
+                        // TAB 2: RIWAYAT SEWA KAMAR / RUMAH
                         Text(
                             text = "Riwayat Sewa",
                             style = MaterialTheme.typography.titleMedium.copy(
@@ -638,37 +648,44 @@ fun RoomDetailScreen(
                             border = BorderStroke(1.dp, Color(0xFFEBEBF5))
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                if (currentTenant != null) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column {
-                                            Text(
-                                                text = currentTenant.name,
-                                                style = MaterialTheme.typography.bodyLarge.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = darkTitleColor
-                                                )
-                                            )
-                                            Text(
-                                                text = "Sewa Aktif (Saat Ini)",
-                                                style = MaterialTheme.typography.bodySmall.copy(color = brandPurple)
-                                            )
-                                        }
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = Color(0xFFE8F5E9)
-                                        ) {
-                                            Text(
-                                                text = "Aktif",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF2E7D32)
-                                                ),
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                            )
+                                if (currentTenants.isNotEmpty()) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        currentTenants.forEachIndexed { index, occupant ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column {
+                                                    Text(
+                                                        text = occupant.name,
+                                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = darkTitleColor
+                                                        )
+                                                    )
+                                                    Text(
+                                                        text = "Sewa Aktif (Saat Ini)",
+                                                        style = MaterialTheme.typography.bodySmall.copy(color = brandPurple)
+                                                    )
+                                                }
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = Color(0xFFE8F5E9)
+                                                ) {
+                                                    Text(
+                                                        text = "Aktif",
+                                                        style = MaterialTheme.typography.labelSmall.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color(0xFF2E7D32)
+                                                        ),
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                    )
+                                                }
+                                            }
+                                            if (index < currentTenants.size - 1) {
+                                                HorizontalDivider(color = Color(0xFFF2F2F7))
+                                            }
                                         }
                                     }
                                 } else {

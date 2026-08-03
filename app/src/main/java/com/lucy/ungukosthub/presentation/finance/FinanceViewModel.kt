@@ -130,8 +130,10 @@ class FinanceViewModel @Inject constructor(
         val expenseSum = filteredList.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
         val net = incomeSum - expenseSum
 
-        // Build Chart Data
-        val chartData = allTransactions.groupBy { formatMonthShort(it.timestamp) }
+        // Build 6-Month Chronological Ascending Chart Data
+        val sortedAscending = allTransactions.sortedBy { it.timestamp }
+        val chartData = sortedAscending
+            .groupBy { formatMonthShort(it.timestamp) }
             .map { (monthLabel, items) ->
                 val inc = items.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
                 val exp = items.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
@@ -140,7 +142,8 @@ class FinanceViewModel @Inject constructor(
                     incomeAmount = inc,
                     expenseAmount = exp
                 )
-            }.takeLast(6)
+            }
+            .takeLast(6)
 
         _uiState.value = _uiState.value.copy(
             selectedMonth = activeMonth,

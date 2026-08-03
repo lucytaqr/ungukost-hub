@@ -65,6 +65,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -771,7 +772,8 @@ fun FinanceSummaryScreen(
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Belum terdapat transaksi pemasukan atau pengeluaran pada rentang ini.",
-                                style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF8E8E93))
+                                style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF8E8E93)),
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -894,8 +896,8 @@ fun DynamicStackedBarChart(chartItems: List<MonthlyChartItem>) {
         verticalAlignment = Alignment.Bottom
     ) {
         chartItems.forEach { item ->
-            val incomeRatio = ((item.incomeAmount / maxAmount) * 0.85).coerceIn(0.08, 0.95).toFloat()
-            val expenseRatio = ((item.expenseAmount / maxAmount) * 0.85).coerceIn(0.08, 0.95).toFloat()
+            val incomeRatio = if (item.incomeAmount > 0) ((item.incomeAmount / maxAmount) * 0.85).coerceIn(0.12, 0.95).toFloat() else 0f
+            val expenseRatio = if (item.expenseAmount > 0) ((item.expenseAmount / maxAmount) * 0.85).coerceIn(0.12, 0.95).toFloat() else 0f
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,

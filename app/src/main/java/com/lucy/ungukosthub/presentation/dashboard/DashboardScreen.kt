@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -366,7 +367,8 @@ fun DashboardScreen(
                                         Text(
                                             text = "Semua kamar saat ini kosong atau belum ada data penghuni aktif.",
                                             fontSize = 12.sp,
-                                            color = Color(0xFF8E8E93)
+                                            color = Color(0xFF8E8E93),
+                                            textAlign = TextAlign.Center
                                         )
                                     }
                                 }
