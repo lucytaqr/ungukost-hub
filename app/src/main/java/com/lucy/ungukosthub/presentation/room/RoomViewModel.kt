@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.lucy.ungukosthub.core.util.Resource
 import com.lucy.ungukosthub.domain.model.Facility
 import com.lucy.ungukosthub.domain.model.Room
+import com.lucy.ungukosthub.domain.model.isActive
 import com.lucy.ungukosthub.domain.repository.FacilityRepository
 import com.lucy.ungukosthub.domain.repository.RoomRepository
 import com.lucy.ungukosthub.domain.repository.TenantRepository
@@ -104,11 +105,13 @@ class RoomViewModel @Inject constructor(
             val tenants = tenantResult.data ?: emptyList()
 
             rooms.map { room ->
-                val hasTenant = tenants.any { tenant ->
-                    (tenant.roomId.isNotBlank() && (tenant.roomId == room.id || tenant.roomId == room.roomNumber)) ||
-                    (tenant.roomNumber.isNotBlank() && (tenant.roomNumber == room.roomNumber || tenant.roomNumber == room.id))
+                val hasActiveTenant = tenants.any { tenant ->
+                    tenant.isActive() && (
+                        (tenant.roomId.isNotBlank() && (tenant.roomId == room.id || tenant.roomId == room.roomNumber)) ||
+                        (tenant.roomNumber.isNotBlank() && (tenant.roomNumber == room.roomNumber || tenant.roomNumber == room.id))
+                    )
                 }
-                room.copy(isOccupied = hasTenant || room.isOccupied)
+                room.copy(isOccupied = hasActiveTenant)
             }
         }.onEach { updatedRooms ->
             updateListState(updatedRooms)

@@ -26,12 +26,14 @@ data class Tenant(
 
 /**
  * Helper to compute effective tenant status.
- * If exitDateText is filled AND the exit date is before today (00:00:00),
- * the tenant's status is automatically "Tidak Aktif".
+ * If status is set to non-active or exitDateText is filled with a date on or before today,
+ * the tenant's status is automatically "Non Aktif".
  */
 fun Tenant.computedStatus(): String {
-    if (status.equals("Tidak Aktif", ignoreCase = true) || status.equals("Keluar", ignoreCase = true)) {
-        return "Tidak Aktif"
+    if (status.equals("Tidak Aktif", ignoreCase = true) ||
+        status.equals("Keluar", ignoreCase = true) ||
+        status.equals("Non Aktif", ignoreCase = true)) {
+        return "Non Aktif"
     }
     if (exitDateText.isNotBlank()) {
         try {
@@ -52,19 +54,23 @@ fun Tenant.computedStatus(): String {
                 } catch (_: Exception) {}
             }
             if (exitDate != null) {
-                val todayCal = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, 0)
-                    set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
+                val todayEnd = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 23)
+                    set(Calendar.MINUTE, 59)
+                    set(Calendar.SECOND, 59)
+                    set(Calendar.MILLISECOND, 999)
                 }
-                if (exitDate.before(todayCal.time)) {
-                    return "Tidak Aktif"
+                if (!exitDate.after(todayEnd.time)) {
+                    return "Non Aktif"
                 }
+            } else {
+                return "Non Aktif"
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+            return "Non Aktif"
+        }
     }
-    return status.ifBlank { "Aktif" }
+    return if (status.isBlank()) "Aktif" else status
 }
 
 fun Tenant.isActive(): Boolean = computedStatus() == "Aktif"

@@ -96,17 +96,35 @@ class DashboardViewModel @Inject constructor(
     private fun isTenantActiveByDate(exitDateText: String): Boolean {
         if (exitDateText.isBlank()) return true
         return try {
-            val sdf = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
-            val exitDate = sdf.parse(exitDateText) ?: return true
-            val todayCal = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
+            val sdfList = listOf(
+                SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID")),
+                SimpleDateFormat("dd MMM yyyy", Locale("id", "ID")),
+                SimpleDateFormat("dd MMMM yyyy", Locale.US),
+                SimpleDateFormat("dd MMM yyyy", Locale.US)
+            )
+            var exitDate: Date? = null
+            for (sdf in sdfList) {
+                try {
+                    val parsed = sdf.parse(exitDateText)
+                    if (parsed != null) {
+                        exitDate = parsed
+                        break
+                    }
+                } catch (_: Exception) {}
             }
-            !exitDate.before(todayCal.time)
+            if (exitDate != null) {
+                val todayEnd = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 23)
+                    set(Calendar.MINUTE, 59)
+                    set(Calendar.SECOND, 59)
+                    set(Calendar.MILLISECOND, 999)
+                }
+                exitDate.after(todayEnd.time)
+            } else {
+                false
+            }
         } catch (e: Exception) {
-            true
+            false
         }
     }
 
