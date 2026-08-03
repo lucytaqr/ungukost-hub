@@ -11,7 +11,7 @@ import javax.inject.Inject
 data class AdminProfileState(
     val name: String = "Admin UnguKost",
     val email: String = "admin@ungukost.com",
-    val phone: String = "081234567890",
+    val phone: String = "081330950655",
     val role: String = "Pemilik Kost"
 )
 

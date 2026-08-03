@@ -2,9 +2,18 @@ package com.lucy.ungukosthub.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary Colors
-val PrimaryPurple = Color(0xFF4C3BCE)
-val BrandPurple = Color(0xFF4B1A8A) // Warna ungu branding baru
+// Primary Branding Colors
+val BrandPurple = Color(0xFF4C3BCE)
+val BrandPurpleDark = Color(0xFF3B2DB3)
+val DarkTitleColor = Color(0xFF2C1458)
+val BackgroundLight = Color(0xFFFBFBFD)
+val BorderLight = Color(0xFFEFEFEF)
+val InactiveGray = Color(0xFF8E8E93)
+val ErrorRed = Color(0xFFE53935)
+val SuccessGreen = Color(0xFF4CAF50)
+
+// Backward compatibility tokens
+val PrimaryPurple = BrandPurple
 val OnPrimaryWhite = Color(0xFFFFFFFF)
 val PrimaryContainerLight = Color(0xFFE0DDFF)
 val OnPrimaryContainerDark = Color(0xFF150063)

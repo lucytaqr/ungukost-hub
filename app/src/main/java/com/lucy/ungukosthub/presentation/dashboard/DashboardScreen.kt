@@ -23,12 +23,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -356,7 +355,7 @@ fun DashboardScreen(
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Outlined.ReceiptLong,
+                                            imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
                                             contentDescription = null,
                                             tint = brandPurple,
                                             modifier = Modifier.size(36.dp)
