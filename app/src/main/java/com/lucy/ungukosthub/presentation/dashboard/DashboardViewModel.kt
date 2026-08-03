@@ -2,8 +2,8 @@ package com.lucy.ungukosthub.presentation.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lucy.ungukosthub.domain.model.Room
 import com.lucy.ungukosthub.domain.model.Tenant
+import com.lucy.ungukosthub.domain.model.Transaction
 import com.lucy.ungukosthub.domain.model.TransactionType
 import com.lucy.ungukosthub.domain.model.User
 import com.lucy.ungukosthub.domain.repository.AuthRepository
@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -27,25 +28,24 @@ data class TenantBillReminder(
     val tenantName: String = "",
     val roomNumber: String = "",
     val phone: String = "",
+    val amount: Double = 0.0,
     val entryDateText: String = "",
-    val exitDateText: String = "",
-    val amount: Double = 0.0
+    val exitDateText: String = ""
 )
 
 data class DashboardUiState(
     val currentUser: User? = null,
-    val isLoading: Boolean = false,
     val totalKamar: Int = 0,
     val totalTerisi: Int = 0,
     val totalKosong: Int = 0,
     val totalEstimasiPendapatan: Double = 0.0,
-    val targetPendapatan: Double = 0.0,
-    val billReminders: List<TenantBillReminder> = emptyList(),
-    val kamarList: List<Room> = emptyList(),
-    val monthlyChartLabels: List<String> = emptyList(),
-    val monthlyChartIncome: List<Double> = emptyList(),
+    val monthlyTargetIncome: Double = 0.0,
     val incomeGrowthText: String = "+0%",
     val isGrowthPositive: Boolean = true,
+    val monthlyChartLabels: List<String> = emptyList(),
+    val monthlyChartIncome: List<Double> = emptyList(),
+    val billReminders: List<TenantBillReminder> = emptyList(),
+    val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -62,6 +62,28 @@ class DashboardViewModel @Inject constructor(
 
     init {
         loadDashboardData()
+    }
+
+    private fun parseDateToTimestamp(dateStr: String): Long {
+        if (dateStr.isBlank()) return 0L
+        val formats = listOf(
+            SimpleDateFormat("dd MMM yyyy", Locale("id", "ID")),
+            SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID")),
+            SimpleDateFormat("dd MMM yyyy", Locale.US),
+            SimpleDateFormat("dd MMMM yyyy", Locale.US)
+        )
+        for (fmt in formats) {
+            try {
+                val d = fmt.parse(dateStr)
+                if (d != null) return d.time
+            } catch (_: Exception) {}
+        }
+        return 0L
+    }
+
+    private fun Transaction.getEffectiveTimestamp(): Long {
+        val parsed = parseDateToTimestamp(this.date)
+        return if (parsed > 0L) parsed else this.timestamp
     }
 
     private fun formatMonthYear(timestamp: Long): String {
@@ -86,6 +108,33 @@ class DashboardViewModel @Inject constructor(
         } catch (e: Exception) {
             true
         }
+    }
+
+    private fun extractDayOfMonth(dateText: String): Int? {
+        if (dateText.isBlank()) return null
+        return try {
+            val sdf = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
+            val date = sdf.parse(dateText)
+            if (date != null) {
+                val cal = Calendar.getInstance().apply { time = date }
+                cal.get(Calendar.DAY_OF_MONTH)
+            } else {
+                dateText.trim().split(" ").firstOrNull()?.filter { it.isDigit() }?.toIntOrNull()
+            }
+        } catch (e: Exception) {
+            dateText.trim().split(" ").firstOrNull()?.filter { it.isDigit() }?.toIntOrNull()
+        }
+    }
+
+    private fun isDueToday(entryDateText: String): Boolean {
+        val tenantDay = extractDayOfMonth(entryDateText) ?: return false
+        val todayCal = Calendar.getInstance()
+        val todayDay = todayCal.get(Calendar.DAY_OF_MONTH)
+
+        val maxDaysInMonth = todayCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val effectiveDueDay = tenantDay.coerceAtMost(maxDaysInMonth)
+
+        return todayDay == effectiveDueDay
     }
 
     private fun loadDashboardData() {
@@ -117,9 +166,9 @@ class DashboardViewModel @Inject constructor(
             }
             val emptyCount = (rooms.size - occupiedCount).coerceAtLeast(0)
 
-            // Hitung pendapatan bulan ini dari transaksi Firestore (atau sewa kamar terisi jika belum ada transaksi)
+            // Hitung pendapatan bulan ini berdasarkan tanggal transaksi
             val currentMonthIncomeTransactions = transactions
-                .filter { it.type == TransactionType.INCOME && formatMonthYear(it.timestamp) == currentMonthStr }
+                .filter { it.type == TransactionType.INCOME && formatMonthYear(it.getEffectiveTimestamp()) == currentMonthStr }
                 .sumOf { it.amount }
 
             val totalOccupiedRoomValue = rooms.filter { room ->
@@ -149,7 +198,7 @@ class DashboardViewModel @Inject constructor(
                 val fullKey = fullMonthFormat.format(tempCal.time)
 
                 val monthIncome = transactions
-                    .filter { it.type == TransactionType.INCOME && formatMonthYear(it.timestamp) == fullKey }
+                    .filter { it.type == TransactionType.INCOME && formatMonthYear(it.getEffectiveTimestamp()) == fullKey }
                     .sumOf { it.amount }
 
                 monthLabels.add(label)
@@ -175,42 +224,38 @@ class DashboardViewModel @Inject constructor(
                 }
             }
 
-            // Build Bill Reminders list for active tenants only
-            val reminders = activeTenants.map { tenant ->
-                val matchedRoom = rooms.find { it.id == tenant.roomId || it.roomNumber == tenant.roomNumber }
-                val roomPrice = matchedRoom?.price ?: 0.0
-                val roomNum = tenant.roomNumber.ifBlank { tenant.roomId }
+            // Filter hanya penghuni aktif yang jatuh tempo bayar tagihan hari ini (berdasarkan tanggal masuk)
+            val dueTenantsToday = activeTenants.filter { isDueToday(it.entryDateText) }
 
+            // Build Bill Reminders list
+            val reminders = dueTenantsToday.map { tenant ->
+                val matchedRoom = rooms.find { it.id == tenant.roomId || it.roomNumber == tenant.roomNumber }
+                val roomStr = tenant.roomNumber.ifBlank { tenant.roomId }
                 TenantBillReminder(
                     tenantId = tenant.id,
                     tenantName = tenant.name,
-                    roomNumber = roomNum,
+                    roomNumber = if (roomStr.startsWith("Kamar", ignoreCase = true)) roomStr.substringAfter("Kamar ").trim() else roomStr,
                     phone = tenant.phone.ifBlank { tenant.emergencyContact },
+                    amount = matchedRoom?.price ?: 0.0,
                     entryDateText = tenant.entryDateText,
-                    exitDateText = tenant.exitDateText,
-                    amount = roomPrice
+                    exitDateText = tenant.exitDateText
                 )
             }
 
             _uiState.value = _uiState.value.copy(
-                currentUser = user,
-                isLoading = false,
                 totalKamar = rooms.size,
                 totalTerisi = occupiedCount,
                 totalKosong = emptyCount,
                 totalEstimasiPendapatan = realMonthIncome,
-                targetPendapatan = if (totalPossibleTarget > 0) totalPossibleTarget else 30000000.0,
-                kamarList = rooms,
-                billReminders = reminders,
+                monthlyTargetIncome = totalPossibleTarget,
+                incomeGrowthText = growthText,
+                isGrowthPositive = isPositive,
                 monthlyChartLabels = monthLabels,
                 monthlyChartIncome = monthIncomeValues,
-                incomeGrowthText = growthText,
-                isGrowthPositive = isPositive
+                billReminders = reminders,
+                isLoading = false,
+                errorMessage = null
             )
         }.launchIn(viewModelScope)
-    }
-
-    fun logout() {
-        authRepository.logout()
     }
 }

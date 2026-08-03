@@ -358,14 +358,14 @@ fun DashboardScreen(
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
-                                            text = "Belum Ada Tagihan Penghuni",
+                                            text = "Tidak Ada Tagihan Jatuh Tempo Hari Ini",
                                             fontWeight = FontWeight.Bold,
                                             color = darkTitleColor,
                                             fontSize = 15.sp
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "Semua kamar saat ini kosong atau belum ada data penghuni aktif.",
+                                            text = "Tidak ada penghuni yang jadwal jatuh tempo bayar tagihan sewa pada tanggal hari ini.",
                                             fontSize = 12.sp,
                                             color = Color(0xFF8E8E93),
                                             textAlign = TextAlign.Center

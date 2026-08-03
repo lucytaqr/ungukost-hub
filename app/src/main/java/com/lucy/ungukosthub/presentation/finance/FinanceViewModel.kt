@@ -55,6 +55,28 @@ class FinanceViewModel @Inject constructor(
         observeTransactions()
     }
 
+    private fun parseDateToTimestamp(dateStr: String): Long {
+        if (dateStr.isBlank()) return 0L
+        val formats = listOf(
+            SimpleDateFormat("dd MMM yyyy", Locale("id", "ID")),
+            SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID")),
+            SimpleDateFormat("dd MMM yyyy", Locale.US),
+            SimpleDateFormat("dd MMMM yyyy", Locale.US)
+        )
+        for (fmt in formats) {
+            try {
+                val d = fmt.parse(dateStr)
+                if (d != null) return d.time
+            } catch (_: Exception) {}
+        }
+        return 0L
+    }
+
+    private fun Transaction.getEffectiveTimestamp(): Long {
+        val parsed = parseDateToTimestamp(this.date)
+        return if (parsed > 0L) parsed else this.timestamp
+    }
+
     private fun formatMonthYear(timestamp: Long): String {
         if (timestamp <= 0) return ""
         val date = Date(timestamp)
@@ -105,7 +127,7 @@ class FinanceViewModel @Inject constructor(
         endText: String = ""
     ) {
         val monthSet = allTransactions
-            .map { formatMonthYear(it.timestamp) }
+            .map { formatMonthYear(it.getEffectiveTimestamp()) }
             .filter { it.isNotBlank() }
             .distinct()
 
@@ -119,21 +141,21 @@ class FinanceViewModel @Inject constructor(
 
         val filteredList = if (start != null && end != null) {
             val endDayInclusive = end + (24 * 60 * 60 * 1000 - 1)
-            allTransactions.filter { it.timestamp in start..endDayInclusive }
+            allTransactions.filter { it.getEffectiveTimestamp() in start..endDayInclusive }
         } else if (activeMonth == "Semua Bulan") {
             allTransactions
         } else {
-            allTransactions.filter { formatMonthYear(it.timestamp) == activeMonth }
+            allTransactions.filter { formatMonthYear(it.getEffectiveTimestamp()) == activeMonth }
         }
 
         val incomeSum = filteredList.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
         val expenseSum = filteredList.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
         val net = incomeSum - expenseSum
 
-        // Build 6-Month Chronological Ascending Chart Data
-        val sortedAscending = allTransactions.sortedBy { it.timestamp }
+        // Build 6-Month Chronological Ascending Chart Data based on transaction date
+        val sortedAscending = allTransactions.sortedBy { it.getEffectiveTimestamp() }
         val chartData = sortedAscending
-            .groupBy { formatMonthShort(it.timestamp) }
+            .groupBy { formatMonthShort(it.getEffectiveTimestamp()) }
             .map { (monthLabel, items) ->
                 val inc = items.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
                 val exp = items.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
@@ -208,13 +230,16 @@ class FinanceViewModel @Inject constructor(
     }
 
     fun addIncome(type: String, tenant: String, amount: Double, date: String, note: String, proofUrl: String = "") {
+        val parsedTime = parseDateToTimestamp(date)
+        val finalTimestamp = if (parsedTime > 0L) parsedTime else System.currentTimeMillis()
+
         val newTransaction = Transaction(
             type = TransactionType.INCOME,
             category = type.ifBlank { "Sewa Kamar" },
             tenantName = tenant,
             amount = amount,
             date = date,
-            timestamp = System.currentTimeMillis(),
+            timestamp = finalTimestamp,
             note = note,
             proofUrl = proofUrl
         )
@@ -234,12 +259,15 @@ class FinanceViewModel @Inject constructor(
     }
 
     fun addExpense(category: String, amount: Double, date: String, note: String, proofUrl: String = "") {
+        val parsedTime = parseDateToTimestamp(date)
+        val finalTimestamp = if (parsedTime > 0L) parsedTime else System.currentTimeMillis()
+
         val newTransaction = Transaction(
             type = TransactionType.EXPENSE,
             category = category.ifBlank { "Lainnya" },
             amount = amount,
             date = date,
-            timestamp = System.currentTimeMillis(),
+            timestamp = finalTimestamp,
             note = note,
             proofUrl = proofUrl
         )
