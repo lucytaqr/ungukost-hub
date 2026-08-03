@@ -90,6 +90,11 @@ class RoomViewModel @Inject constructor(
         observeFacilities()
     }
 
+    private fun extractRoomNumberDigits(roomNumber: String): Int {
+        val digits = roomNumber.filter { it.isDigit() }
+        return digits.toIntOrNull() ?: Int.MAX_VALUE
+    }
+
     private fun observeRoomsAndTenants() {
         combine(
             roomRepository.getRooms(),
@@ -143,12 +148,16 @@ class RoomViewModel @Inject constructor(
     }
 
     private fun updateListState(rooms: List<Room>) {
-        val total = rooms.size
-        val occupied = rooms.count { it.isOccupied }
+        val sortedRooms = rooms.sortedWith(
+            compareBy<Room> { extractRoomNumberDigits(it.roomNumber) }
+                .thenBy { it.roomNumber }
+        )
+        val total = sortedRooms.size
+        val occupied = sortedRooms.count { it.isOccupied }
         val vacant = total - occupied
 
         _roomListState.value = _roomListState.value.copy(
-            rooms = rooms,
+            rooms = sortedRooms,
             totalCount = total,
             occupiedCount = occupied,
             vacantCount = vacant,
