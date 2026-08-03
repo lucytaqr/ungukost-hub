@@ -510,14 +510,16 @@ fun EditTenantScreen(
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 val selectedRoomText = if (editState.roomNumberInput.isNotBlank()) {
                                     val r = editState.roomNumberInput
-                                    if (r.startsWith("Kamar", ignoreCase = true)) r else "Kamar $r"
+                                    val matched = roomListState.rooms.find { it.roomNumber == r || it.id == editState.roomIdInput }
+                                    val prefix = if (matched?.category?.equals("Rumah", ignoreCase = true) == true) "Rumah" else "Kamar"
+                                    if (r.startsWith("Kamar", ignoreCase = true) || r.startsWith("Rumah", ignoreCase = true)) r else "$prefix $r"
                                 } else ""
 
                                 OutlinedTextField(
                                     value = selectedRoomText,
                                     onValueChange = {},
                                     readOnly = true,
-                                    placeholder = { Text("Pilih Kamar", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
+                                    placeholder = { Text("Pilih Kamar / Rumah", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
                                     trailingIcon = {
                                         Icon(
                                             imageVector = Icons.Default.KeyboardArrowDown,
@@ -542,16 +544,29 @@ fun EditTenantScreen(
                                     expanded = roomDropdownExpanded,
                                     onDismissRequest = { roomDropdownExpanded = false }
                                 ) {
-                                    val availableRooms = roomListState.rooms
+                                    val availableRooms = roomListState.rooms.filter { room ->
+                                        !room.isOccupied || 
+                                        room.category.equals("Rumah", ignoreCase = true) || 
+                                        room.id == editState.roomIdInput || 
+                                        room.roomNumber == editState.roomNumberInput || 
+                                        (editState.roomIdInput.isNotBlank() && room.roomNumber == editState.roomIdInput)
+                                    }
                                     if (availableRooms.isEmpty()) {
                                         DropdownMenuItem(
-                                            text = { Text("Belum ada data kamar tersedia", color = Color(0xFF8E8E93)) },
+                                            text = { Text("Tidak ada kamar kosong atau rumah tersedia", color = Color(0xFF8E8E93)) },
                                             onClick = { roomDropdownExpanded = false }
                                         )
                                     } else {
                                         availableRooms.forEach { room ->
+                                            val roomLabel = if (room.roomNumber.startsWith("Kamar", ignoreCase = true) || room.roomNumber.startsWith("Rumah", ignoreCase = true)) {
+                                                room.roomNumber
+                                            } else if (room.category.equals("Rumah", ignoreCase = true)) {
+                                                "Rumah ${room.roomNumber}"
+                                            } else {
+                                                "Kamar ${room.roomNumber}"
+                                            }
                                             DropdownMenuItem(
-                                                text = { Text("Kamar ${room.roomNumber}") },
+                                                text = { Text(roomLabel) },
                                                 onClick = {
                                                     viewModel.onEditRoomSelected(room.id, room.roomNumber)
                                                     roomDropdownExpanded = false
