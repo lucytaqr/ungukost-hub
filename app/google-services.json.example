@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "500809187095",
-    "project_id": "ungu-kost",
-    "storage_bucket": "ungu-kost.firebasestorage.app"
+    "project_number": "1234567890",
+    "project_id": "your-firebase-project-id",
+    "storage_bucket": "your-firebase-project.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:500809187095:android:0460352ba24a1a7a028152",
+        "mobilesdk_app_id": "1:1234567890:android:abcdef0123456789",
         "android_client_info": {
           "package_name": "com.lucy.ungukosthub"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBbdwhU5YGaUcQ8UFI1XLBgTU7Oqi2iseI"
+          "current_key": "YOUR_FIREBASE_API_KEY_HERE"
         }
       ],
       "services": {
