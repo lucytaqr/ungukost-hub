@@ -471,66 +471,10 @@ fun RoomListBottomNavigation(
     activeTab: Int,
     onTabSelected: (Int) -> Unit
 ) {
-    val brandPurple = Color(0xFF4C3BCE)
-    val inactiveColor = Color(0xFF8E8E93)
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding(),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFEFEFEF)),
-        shadowElevation = 8.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BottomNavItem(
-                icon = Icons.Default.Home,
-                label = "Dashboard",
-                isSelected = activeTab == 0,
-                activeColor = brandPurple,
-                inactiveColor = inactiveColor,
-                onClick = { onTabSelected(0) }
-            )
-            BottomNavItem(
-                drawableResId = R.drawable.mdi__bedroom,
-                label = "Kamar",
-                isSelected = activeTab == 1,
-                activeColor = brandPurple,
-                inactiveColor = inactiveColor,
-                onClick = { onTabSelected(1) }
-            )
-            BottomNavItem(
-                icon = Icons.Default.People,
-                label = "Penghuni",
-                isSelected = activeTab == 2,
-                activeColor = brandPurple,
-                inactiveColor = inactiveColor,
-                onClick = { onTabSelected(2) }
-            )
-            BottomNavItem(
-                icon = Icons.Default.Receipt,
-                label = "Keuangan",
-                isSelected = activeTab == 3,
-                activeColor = brandPurple,
-                inactiveColor = inactiveColor,
-                onClick = { onTabSelected(3) }
-            )
-            BottomNavItem(
-                icon = Icons.Default.Person,
-                label = "Lainnya",
-                isSelected = activeTab == 4,
-                activeColor = brandPurple,
-                inactiveColor = inactiveColor,
-                onClick = { onTabSelected(4) }
-            )
-        }
-    }
+    com.lucy.ungukosthub.presentation.dashboard.DashboardBottomNavigation(
+        activeTab = activeTab,
+        onTabSelected = onTabSelected
+    )
 }
 
 @Composable
@@ -539,18 +483,25 @@ fun BottomNavItem(
     drawableResId: Int? = null,
     label: String,
     isSelected: Boolean,
+    isLoading: Boolean = false,
     activeColor: Color,
     inactiveColor: Color,
     onClick: () -> Unit
 ) {
-    val tint = if (isSelected) activeColor else inactiveColor
+    val tint = if (isSelected || isLoading) activeColor else inactiveColor
     Column(
         modifier = Modifier
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (drawableResId != null) {
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                color = activeColor,
+                strokeWidth = 2.dp
+            )
+        } else if (drawableResId != null) {
             Icon(
                 painter = painterResource(id = drawableResId),
                 contentDescription = label,
@@ -570,7 +521,7 @@ fun BottomNavItem(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                fontWeight = if (isSelected || isLoading) FontWeight.Bold else FontWeight.Normal
             ),
             color = tint
         )

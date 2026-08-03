@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
@@ -33,6 +34,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -42,6 +44,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -598,6 +603,8 @@ fun DashboardBottomNavigation(
     val brandPurple = Color(0xFF4C3BCE)
     val inactiveColor = Color(0xFF8E8E93)
 
+    var loadingTab by remember { mutableStateOf<Int?>(null) }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -606,53 +613,95 @@ fun DashboardBottomNavigation(
         border = BorderStroke(1.dp, Color(0xFFEFEFEF)),
         shadowElevation = 8.dp
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BottomNavItem(
-                icon = Icons.Default.Home,
-                label = "Dashboard",
-                isSelected = activeTab == 0,
-                activeColor = brandPurple,
-                inactiveColor = inactiveColor,
-                onClick = { onTabSelected(0) }
-            )
-            BottomNavItem(
-                drawableResId = R.drawable.mdi__bedroom,
-                label = "Kamar",
-                isSelected = activeTab == 1,
-                activeColor = brandPurple,
-                inactiveColor = inactiveColor,
-                onClick = { onTabSelected(1) }
-            )
-            BottomNavItem(
-                icon = Icons.Default.People,
-                label = "Penghuni",
-                isSelected = activeTab == 2,
-                activeColor = brandPurple,
-                inactiveColor = inactiveColor,
-                onClick = { onTabSelected(2) }
-            )
-            BottomNavItem(
-                icon = Icons.Default.Receipt,
-                label = "Keuangan",
-                isSelected = activeTab == 3,
-                activeColor = brandPurple,
-                inactiveColor = inactiveColor,
-                onClick = { onTabSelected(3) }
-            )
-            BottomNavItem(
-                icon = Icons.Default.Person,
-                label = "Lainnya",
-                isSelected = activeTab == 4,
-                activeColor = brandPurple,
-                inactiveColor = inactiveColor,
-                onClick = { onTabSelected(4) }
-            )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            if (loadingTab != null) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = brandPurple,
+                    trackColor = brandPurple.copy(alpha = 0.2f)
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BottomNavItem(
+                    icon = Icons.Default.Home,
+                    label = "Dashboard",
+                    isSelected = activeTab == 0,
+                    isLoading = loadingTab == 0,
+                    activeColor = brandPurple,
+                    inactiveColor = inactiveColor,
+                    onClick = {
+                        if (activeTab != 0) {
+                            loadingTab = 0
+                            onTabSelected(0)
+                        }
+                    }
+                )
+                BottomNavItem(
+                    drawableResId = R.drawable.mdi__bedroom,
+                    label = "Kamar",
+                    isSelected = activeTab == 1,
+                    isLoading = loadingTab == 1,
+                    activeColor = brandPurple,
+                    inactiveColor = inactiveColor,
+                    onClick = {
+                        if (activeTab != 1) {
+                            loadingTab = 1
+                            onTabSelected(1)
+                        }
+                    }
+                )
+                BottomNavItem(
+                    icon = Icons.Default.People,
+                    label = "Penghuni",
+                    isSelected = activeTab == 2,
+                    isLoading = loadingTab == 2,
+                    activeColor = brandPurple,
+                    inactiveColor = inactiveColor,
+                    onClick = {
+                        if (activeTab != 2) {
+                            loadingTab = 2
+                            onTabSelected(2)
+                        }
+                    }
+                )
+                BottomNavItem(
+                    icon = Icons.Default.Receipt,
+                    label = "Keuangan",
+                    isSelected = activeTab == 3,
+                    isLoading = loadingTab == 3,
+                    activeColor = brandPurple,
+                    inactiveColor = inactiveColor,
+                    onClick = {
+                        if (activeTab != 3) {
+                            loadingTab = 3
+                            onTabSelected(3)
+                        }
+                    }
+                )
+                BottomNavItem(
+                    icon = Icons.Default.MoreHoriz,
+                    label = "Lainnya",
+                    isSelected = activeTab == 4,
+                    isLoading = loadingTab == 4,
+                    activeColor = brandPurple,
+                    inactiveColor = inactiveColor,
+                    onClick = {
+                        if (activeTab != 4) {
+                            loadingTab = 4
+                            onTabSelected(4)
+                        }
+                    }
+                )
+            }
         }
     }
 }

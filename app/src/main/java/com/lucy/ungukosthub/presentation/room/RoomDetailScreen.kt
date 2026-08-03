@@ -139,6 +139,7 @@ fun RoomDetailScreen(
     selectedPreviewPhotoUrl?.let { photoUrl ->
         AlertDialog(
             onDismissRequest = { selectedPreviewPhotoUrl = null },
+            containerColor = Color.White,
             title = { Text("Foto Kondisi Kamar", fontWeight = FontWeight.Bold, color = darkTitleColor) },
             text = {
                 Box(
@@ -168,6 +169,7 @@ fun RoomDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
+            containerColor = Color.White,
             title = {
                 Text(
                     text = "Hapus Kamar?",

@@ -164,6 +164,7 @@ fun FinanceSummaryScreen(
 
         AlertDialog(
             onDismissRequest = { showDateRangeDialog = false },
+            containerColor = Color.White,
             title = { Text("Filter Range Tanggal", fontWeight = FontWeight.Bold, color = darkTitleColor) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -252,6 +253,7 @@ fun FinanceSummaryScreen(
     showDeleteConfirmDialog?.let { transId ->
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = null },
+            containerColor = Color.White,
             title = { Text("Hapus Transaksi", fontWeight = FontWeight.Bold, color = Color(0xFFE53935)) },
             text = { Text("Apakah Anda yakin ingin menghapus data transaksi ini dari Firestore?") },
             confirmButton = {
@@ -278,6 +280,7 @@ fun FinanceSummaryScreen(
     selectedProofPhotoUrl?.let { proofUrl ->
         AlertDialog(
             onDismissRequest = { selectedProofPhotoUrl = null },
+            containerColor = Color.White,
             title = { Text("Bukti Transaksi", fontWeight = FontWeight.Bold, color = darkTitleColor) },
             text = {
                 Box(

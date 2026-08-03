@@ -91,6 +91,7 @@ fun TenantDetailScreen(
     if (showFullKtpDialog && !tenant?.ktpUrl.isNullOrBlank()) {
         AlertDialog(
             onDismissRequest = { showFullKtpDialog = false },
+            containerColor = Color.White,
             title = { Text("Foto KTP / Identitas", fontWeight = FontWeight.Bold, color = darkTitleColor) },
             text = {
                 Box(
@@ -120,6 +121,7 @@ fun TenantDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
+            containerColor = Color.White,
             title = { Text("Hapus Data Penghuni?", fontWeight = FontWeight.Bold, color = Color(0xFFE53935)) },
             text = { Text("Apakah Anda yakin ingin menghapus data penghuni ${tenant?.name}? Data yang dihapus tidak dapat dikembalikan.") },
             confirmButton = {

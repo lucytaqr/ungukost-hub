@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,17 +22,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -42,8 +37,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -59,20 +52,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.lucy.ungukosthub.R
 import com.lucy.ungukosthub.presentation.dashboard.DashboardBottomNavigation
 
 /**
- * Layar Pengaturan / Lainnya (SettingsScreen) dengan fitur lengkap:
+ * Layar Pengaturan / Lainnya (SettingsScreen) dengan menu utama:
  * 1. Profil Admin
- * 2. Pengaturan Aplikasi
- * 3. Notifikasi
- * 4. Backup & Restore
- * 5. Tentang Aplikasi
- * 6. Keluar (Logout)
+ * 2. Tentang Aplikasi
+ * 3. Keluar (Logout)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,9 +85,6 @@ fun SettingsScreen(
 
     // Dialog state controllers
     var showProfileDialog by remember { mutableStateOf(false) }
-    var showAppSettingsDialog by remember { mutableStateOf(false) }
-    var showNotificationDialog by remember { mutableStateOf(false) }
-    var showBackupDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -176,31 +165,7 @@ fun SettingsScreen(
                         )
                         HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(horizontal = 16.dp))
 
-                        // 2. Pengaturan Aplikasi
-                        SettingsMenuItemRow(
-                            title = "Pengaturan Aplikasi",
-                            icon = Icons.Default.Settings,
-                            onClick = { showAppSettingsDialog = true }
-                        )
-                        HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // 3. Notifikasi
-                        SettingsMenuItemRow(
-                            title = "Notifikasi",
-                            icon = Icons.Default.Notifications,
-                            onClick = { showNotificationDialog = true }
-                        )
-                        HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // 4. Backup & Restore
-                        SettingsMenuItemRow(
-                            title = "Backup & Restore",
-                            icon = Icons.Default.Backup,
-                            onClick = { showBackupDialog = true }
-                        )
-                        HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // 5. Tentang Aplikasi
+                        // 2. Tentang Aplikasi
                         SettingsMenuItemRow(
                             title = "Tentang Aplikasi",
                             icon = Icons.Default.Info,
@@ -208,7 +173,7 @@ fun SettingsScreen(
                         )
                         HorizontalDivider(color = Color(0xFFF2F2F7), modifier = Modifier.padding(horizontal = 16.dp))
 
-                        // 6. Keluar Button
+                        // 3. Keluar Button
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -247,6 +212,7 @@ fun SettingsScreen(
 
         AlertDialog(
             onDismissRequest = { showProfileDialog = false },
+            containerColor = Color.White,
             title = {
                 Text(
                     text = "Profil Admin",
@@ -268,7 +234,7 @@ fun SettingsScreen(
                         value = uiState.adminProfile.email,
                         onValueChange = {},
                         enabled = false,
-                        label = { Text("Email (Tergembok)") },
+                        label = { Text("Email") },
                         singleLine = true
                     )
                     OutlinedTextField(
@@ -306,250 +272,18 @@ fun SettingsScreen(
         )
     }
 
-    // ================= 2. DIALOG PENGATURAN APLIKASI =================
-    if (showAppSettingsDialog) {
-        var isDark by remember { mutableStateOf(uiState.appSettings.isDarkModeEnabled) }
-        var currency by remember { mutableStateOf(uiState.appSettings.currency) }
-        var language by remember { mutableStateOf(uiState.appSettings.language) }
-
-        AlertDialog(
-            onDismissRequest = { showAppSettingsDialog = false },
-            title = {
-                Text(
-                    text = "Pengaturan Aplikasi",
-                    fontWeight = FontWeight.Bold,
-                    color = darkTitleColor,
-                    fontSize = 18.sp
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text("Mode Gelap (Dark Mode)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text("Tampilan tema aplikasi", fontSize = 12.sp, color = Color(0xFF8E8E93))
-                        }
-                        Switch(
-                            checked = isDark,
-                            onCheckedChange = { isDark = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPurple)
-                        )
-                    }
-
-                    OutlinedTextField(
-                        value = currency,
-                        onValueChange = { currency = it },
-                        label = { Text("Mata Uang") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = brandPurple)
-                    )
-
-                    OutlinedTextField(
-                        value = language,
-                        onValueChange = { language = it },
-                        label = { Text("Bahasa Aplikasi") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = brandPurple)
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.toggleDarkMode(isDark)
-                        viewModel.updateAppSettings(currency, language, uiState.appSettings.defaultDueDay)
-                        showAppSettingsDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = brandPurple)
-                ) {
-                    Text("Simpan", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAppSettingsDialog = false }) {
-                    Text("Tutup", color = Color(0xFF8E8E93))
-                }
-            }
-        )
-    }
-
-    // ================= 3. DIALOG NOTIFIKASI =================
-    if (showNotificationDialog) {
-        var waEnable by remember { mutableStateOf(uiState.notificationSettings.isWaReminderEnabled) }
-        var timeInput by remember { mutableStateOf(uiState.notificationSettings.sendTime) }
-        var vacancyEnable by remember { mutableStateOf(uiState.notificationSettings.isVacancyAlertEnabled) }
-        var txEnable by remember { mutableStateOf(uiState.notificationSettings.isTransactionAlertEnabled) }
-
-        AlertDialog(
-            onDismissRequest = { showNotificationDialog = false },
-            title = {
-                Text(
-                    text = "Pengaturan Notifikasi",
-                    fontWeight = FontWeight.Bold,
-                    color = darkTitleColor,
-                    fontSize = 18.sp
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Pengingat WA Jatuh Tempo", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text("Kirim draf WhatsApp otomatis", fontSize = 12.sp, color = Color(0xFF8E8E93))
-                        }
-                        Switch(
-                            checked = waEnable,
-                            onCheckedChange = { waEnable = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPurple)
-                        )
-                    }
-
-                    OutlinedTextField(
-                        value = timeInput,
-                        onValueChange = { timeInput = it },
-                        label = { Text("Waktu Pengiriman Harian") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = brandPurple)
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Notifikasi Kamar Kosong", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Switch(
-                            checked = vacancyEnable,
-                            onCheckedChange = { vacancyEnable = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPurple)
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Alert Transaksi Baru", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Switch(
-                            checked = txEnable,
-                            onCheckedChange = { txEnable = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPurple)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.updateNotificationSettings(waEnable, timeInput, vacancyEnable, txEnable)
-                        showNotificationDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = brandPurple)
-                ) {
-                    Text("Simpan", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showNotificationDialog = false }) {
-                    Text("Tutup", color = Color(0xFF8E8E93))
-                }
-            }
-        )
-    }
-
-    // ================= 4. DIALOG BACKUP & RESTORE =================
-    if (showBackupDialog) {
-        AlertDialog(
-            onDismissRequest = { showBackupDialog = false },
-            title = {
-                Text(
-                    text = "Backup & Restore Data",
-                    fontWeight = FontWeight.Bold,
-                    color = darkTitleColor,
-                    fontSize = 18.sp
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Cadangkan atau pulihkan seluruh data kamar, penghuni, dan transaksi sistem secara aman.")
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF3F2F8),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = brandPurple, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = uiState.backupState.lastBackupText,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = darkTitleColor
-                            )
-                        }
-                    }
-
-                    if (uiState.backupState.isBackupLoading) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            CircularProgressIndicator(color = brandPurple, modifier = Modifier.size(28.dp))
-                        }
-                    } else {
-                        Button(
-                            onClick = viewModel::performBackup,
-                            colors = ButtonDefaults.buttonColors(containerColor = brandPurple),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Cadangkan Data Sekarang (Export JSON)", color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-
-                        Button(
-                            onClick = viewModel::performRestore,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Pulihkan Data (Restore System)", color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showBackupDialog = false }) {
-                    Text("Tutup", color = brandPurple, fontWeight = FontWeight.Bold)
-                }
-            }
-        )
-    }
-
-    // ================= 5. DIALOG TENTANG APLIKASI =================
+    // ================= 2. DIALOG TENTANG APLIKASI =================
     if (showAboutDialog) {
         AlertDialog(
             onDismissRequest = { showAboutDialog = false },
+            containerColor = Color.White,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        shape = CircleShape,
-                        color = brandPurple,
+                    Image(
+                        painter = painterResource(id = R.drawable.logo_ungukost),
+                        contentDescription = "Logo UnguKost",
                         modifier = Modifier.size(36.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Home, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                        }
-                    }
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = "UnguKost Hub",
@@ -564,7 +298,7 @@ fun SettingsScreen(
                     Text("Versi Aplikasi: 1.0.0 (Build 2026)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Text("Sistem Manajemen & Keuangan Kost Modern berarsitektur Clean Architecture MVVM & Firebase Cloud Integration.")
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Pengembang: Lucy Taqr / UnguKost Team", fontSize = 12.sp, color = Color(0xFF8E8E93))
+                    Text("Pengembang: Lucyta QR / UnguKost Team", fontSize = 12.sp, color = Color(0xFF8E8E93))
                     Text("Hak Cipta © 2026 UnguKost. All rights reserved.", fontSize = 12.sp, color = Color(0xFF8E8E93))
                 }
             },
@@ -579,10 +313,11 @@ fun SettingsScreen(
         )
     }
 
-    // ================= 6. DIALOG KELUAR (LOGOUT) =================
+    // ================= 3. DIALOG KELUAR (LOGOUT) =================
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
+            containerColor = Color.White,
             title = {
                 Text(
                     text = "Keluar dari Akun?",

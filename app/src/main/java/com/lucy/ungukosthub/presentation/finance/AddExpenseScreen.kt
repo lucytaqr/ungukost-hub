@@ -190,6 +190,7 @@ fun AddExpenseScreen(
     if (showUnsavedDialog) {
         AlertDialog(
             onDismissRequest = { showUnsavedDialog = false },
+            containerColor = Color.White,
             title = { Text("Batalkan Pengisian Form?", fontWeight = FontWeight.Bold, color = Color(0xFFE53935)) },
             text = { Text("Perubahan yang Anda masukkan belum disimpan. Apakah Anda yakin ingin keluar?", color = darkTitleColor) },
             confirmButton = {
