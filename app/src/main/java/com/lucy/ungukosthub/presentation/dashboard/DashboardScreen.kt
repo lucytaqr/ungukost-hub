@@ -213,7 +213,7 @@ fun DashboardScreen(
                                     Image(
                                         painter = painterResource(id = R.drawable.boarding_house_hero),
                                         contentDescription = "Ungu Kost Hero",
-                                        modifier = Modifier.size(90.dp)
+                                        modifier = Modifier.size(100.dp)
                                     )
                                 }
                             }
@@ -290,14 +290,14 @@ fun DashboardScreen(
 
                                     Surface(
                                         shape = RoundedCornerShape(10.dp),
-                                        color = Color(0xFFE8F5E9)
+                                        color = if (uiState.isGrowthPositive) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
                                     ) {
                                         Text(
-                                            text = "+12%",
+                                            text = uiState.incomeGrowthText,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 12.sp,
-                                                color = Color(0xFF2E7D32)
+                                                color = if (uiState.isGrowthPositive) Color(0xFF2E7D32) else Color(0xFFC62828)
                                             ),
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                         )

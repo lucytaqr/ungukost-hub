@@ -42,6 +42,8 @@ data class DashboardUiState(
     val kamarList: List<Room> = emptyList(),
     val monthlyChartLabels: List<String> = emptyList(),
     val monthlyChartIncome: List<Double> = emptyList(),
+    val incomeGrowthText: String = "+0%",
+    val isGrowthPositive: Boolean = true,
     val errorMessage: String? = null
 )
 
@@ -111,7 +113,6 @@ class DashboardViewModel @Inject constructor(
             val totalPossibleTarget = rooms.sumOf { it.price }
 
             // Build 6 Bulan Terakhir untuk Grafik Pendapatan Real
-            val cal = Calendar.getInstance()
             val monthLabels = mutableListOf<String>()
             val monthIncomeValues = mutableListOf<Double>()
             val shortMonthFormat = SimpleDateFormat("MMM", Locale("id", "ID"))
@@ -131,6 +132,25 @@ class DashboardViewModel @Inject constructor(
 
                 monthLabels.add(label)
                 monthIncomeValues.add(monthIncome)
+            }
+
+            // Hitung persentase pertumbuhan pendapatan dibanding bulan lalu secara real
+            val currentInc = monthIncomeValues.getOrElse(5) { realMonthIncome }
+            val prevInc = monthIncomeValues.getOrElse(4) { 0.0 }
+
+            val (growthText, isPositive) = when {
+                prevInc == 0.0 && currentInc > 0.0 -> Pair("+100%", true)
+                prevInc == 0.0 && currentInc == 0.0 -> Pair("+0%", true)
+                else -> {
+                    val diff = currentInc - prevInc
+                    val pct = (diff / prevInc) * 100.0
+                    val formatted = String.format(Locale.US, "%.0f%%", kotlin.math.abs(pct))
+                    if (pct >= 0) {
+                        Pair("+$formatted", true)
+                    } else {
+                        Pair("-$formatted", false)
+                    }
+                }
             }
 
             // Build Bill Reminders list for active tenants
@@ -160,7 +180,9 @@ class DashboardViewModel @Inject constructor(
                 kamarList = rooms,
                 billReminders = reminders,
                 monthlyChartLabels = monthLabels,
-                monthlyChartIncome = monthIncomeValues
+                monthlyChartIncome = monthIncomeValues,
+                incomeGrowthText = growthText,
+                isGrowthPositive = isPositive
             )
         }.launchIn(viewModelScope)
     }
