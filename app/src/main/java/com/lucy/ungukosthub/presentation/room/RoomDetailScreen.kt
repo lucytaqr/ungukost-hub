@@ -1,5 +1,8 @@
 package com.lucy.ungukosthub.presentation.room
 
+import com.lucy.ungukosthub.domain.model.computedStatus
+import com.lucy.ungukosthub.domain.model.isActive
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -118,8 +121,15 @@ fun RoomDetailScreen(
         list
     }
 
-    // Cari daftar seluruh penghuni saat ini untuk kamar / rumah ini
+    // Cari daftar seluruh penghuni aktif saat ini untuk kamar / rumah ini
     val currentTenants = remember(tenantListState.tenants, room) {
+        tenantListState.tenants.filter {
+            it.isActive() && (it.roomId == room?.id || it.roomId == room?.roomNumber || (room != null && it.roomNumber == room.roomNumber))
+        }
+    }
+
+    // Cari seluruh riwayat penghuni (baik aktif maupun tidak aktif) untuk kamar / rumah ini
+    val allRoomTenants = remember(tenantListState.tenants, room) {
         tenantListState.tenants.filter {
             it.roomId == room?.id || it.roomId == room?.roomNumber || (room != null && it.roomNumber == room.roomNumber)
         }
@@ -631,9 +641,9 @@ fun RoomDetailScreen(
                     }
 
                     2 -> {
-                        // TAB 2: RIWAYAT SEWA KAMAR / RUMAH
+                        // TAB 2: RIWAYAT SEWA KAMAR / RUMAH (Penghuni Aktif & Tidak Aktif)
                         Text(
-                            text = "Riwayat Sewa",
+                            text = if (allRoomTenants.isNotEmpty()) "Riwayat Sewa (${allRoomTenants.size})" else "Riwayat Sewa",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
@@ -648,15 +658,16 @@ fun RoomDetailScreen(
                             border = BorderStroke(1.dp, Color(0xFFEBEBF5))
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                if (currentTenants.isNotEmpty()) {
+                                if (allRoomTenants.isNotEmpty()) {
                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        currentTenants.forEachIndexed { index, occupant ->
+                                        allRoomTenants.forEachIndexed { index, occupant ->
+                                            val isTenantActive = occupant.isActive()
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Column {
+                                                Column(modifier = Modifier.weight(1f) .padding(end = 8.dp)) {
                                                     Text(
                                                         text = occupant.name,
                                                         style = MaterialTheme.typography.bodyLarge.copy(
@@ -664,26 +675,34 @@ fun RoomDetailScreen(
                                                             color = darkTitleColor
                                                         )
                                                     )
+                                                    Spacer(modifier = Modifier.height(2.dp))
                                                     Text(
-                                                        text = "Sewa Aktif (Saat Ini)",
-                                                        style = MaterialTheme.typography.bodySmall.copy(color = brandPurple)
+                                                        text = if (isTenantActive) {
+                                                            "Sewa Aktif (${occupant.entryDateText.ifBlank { "Saat ini" }})"
+                                                        } else {
+                                                            "Sewa Selesai (${occupant.entryDateText.ifBlank { "-" }} s/d ${occupant.exitDateText.ifBlank { "-" }})"
+                                                        },
+                                                        style = MaterialTheme.typography.bodySmall.copy(
+                                                            color = if (isTenantActive) brandPurple else Color(0xFF8E8E93),
+                                                            fontSize = 12.sp
+                                                        )
                                                     )
                                                 }
                                                 Surface(
                                                     shape = RoundedCornerShape(6.dp),
-                                                    color = Color(0xFFE8F5E9)
+                                                    color = if (isTenantActive) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
                                                 ) {
                                                     Text(
-                                                        text = "Aktif",
+                                                        text = occupant.computedStatus(),
                                                         style = MaterialTheme.typography.labelSmall.copy(
                                                             fontWeight = FontWeight.Bold,
-                                                            color = Color(0xFF2E7D32)
+                                                            color = if (isTenantActive) Color(0xFF2E7D32) else Color(0xFFE53935)
                                                         ),
                                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                                     )
                                                 }
                                             }
-                                            if (index < currentTenants.size - 1) {
+                                            if (index < allRoomTenants.size - 1) {
                                                 HorizontalDivider(color = Color(0xFFF2F2F7))
                                             }
                                         }

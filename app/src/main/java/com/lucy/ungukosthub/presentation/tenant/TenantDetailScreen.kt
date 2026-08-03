@@ -1,5 +1,8 @@
 package com.lucy.ungukosthub.presentation.tenant
 
+import com.lucy.ungukosthub.domain.model.computedStatus
+import com.lucy.ungukosthub.domain.model.isActive
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -231,12 +234,14 @@ fun TenantDetailScreen(
                             }
                         }
 
+                        val currentStatus = tenant?.computedStatus() ?: "Aktif"
+                        val isTenantActive = tenant?.isActive() == true
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color.White.copy(alpha = 0.2f)
+                            color = if (isTenantActive) Color.White.copy(alpha = 0.2f) else Color(0xFFE53935)
                         ) {
                             Text(
-                                text = tenant?.status ?: "Aktif",
+                                text = currentStatus,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,

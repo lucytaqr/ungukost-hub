@@ -1,5 +1,8 @@
 package com.lucy.ungukosthub.presentation.tenant
 
+import com.lucy.ungukosthub.domain.model.computedStatus
+import com.lucy.ungukosthub.domain.model.isActive
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -372,11 +375,29 @@ fun TenantRowItem(
             }
         }
 
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = "Detail",
-            tint = brandPurple,
-            modifier = Modifier.size(24.dp)
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val isTenantActive = tenant.isActive()
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (isTenantActive) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+            ) {
+                Text(
+                    text = tenant.computedStatus(),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        color = if (isTenantActive) Color(0xFF2E7D32) else Color(0xFFE53935)
+                    ),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Detail",
+                tint = brandPurple,
+                modifier = Modifier.size(24.dp)
+            )
+        }
     }
 }

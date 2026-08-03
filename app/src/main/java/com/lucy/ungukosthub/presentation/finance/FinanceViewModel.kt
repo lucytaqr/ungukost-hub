@@ -126,7 +126,10 @@ class FinanceViewModel @Inject constructor(
         startText: String = "",
         endText: String = ""
     ) {
-        val monthSet = allTransactions
+        // Urutkan seluruh transaksi dari yang terbaru ke terlama
+        val allSortedDescending = allTransactions.sortedByDescending { it.getEffectiveTimestamp() }
+
+        val monthSet = allSortedDescending
             .map { formatMonthYear(it.getEffectiveTimestamp()) }
             .filter { it.isNotBlank() }
             .distinct()
@@ -141,11 +144,11 @@ class FinanceViewModel @Inject constructor(
 
         val filteredList = if (start != null && end != null) {
             val endDayInclusive = end + (24 * 60 * 60 * 1000 - 1)
-            allTransactions.filter { it.getEffectiveTimestamp() in start..endDayInclusive }
+            allSortedDescending.filter { it.getEffectiveTimestamp() in start..endDayInclusive }
         } else if (activeMonth == "Semua Bulan") {
-            allTransactions
+            allSortedDescending
         } else {
-            allTransactions.filter { formatMonthYear(it.getEffectiveTimestamp()) == activeMonth }
+            allSortedDescending.filter { formatMonthYear(it.getEffectiveTimestamp()) == activeMonth }
         }
 
         val incomeSum = filteredList.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
@@ -153,7 +156,7 @@ class FinanceViewModel @Inject constructor(
         val net = incomeSum - expenseSum
 
         // Build 6-Month Chronological Ascending Chart Data based on transaction date
-        val sortedAscending = allTransactions.sortedBy { it.getEffectiveTimestamp() }
+        val sortedAscending = allSortedDescending.sortedBy { it.getEffectiveTimestamp() }
         val chartData = sortedAscending
             .groupBy { formatMonthShort(it.getEffectiveTimestamp()) }
             .map { (monthLabel, items) ->
@@ -177,7 +180,7 @@ class FinanceViewModel @Inject constructor(
             totalIncome = incomeSum,
             totalExpense = expenseSum,
             netProfit = net,
-            recentTransactions = allTransactions,
+            recentTransactions = allSortedDescending,
             filteredTransactions = filteredList,
             chartItems = chartData,
             isLoading = false,
