@@ -216,6 +216,7 @@ fun AppNavigation(
         composable(route = Screen.Settings.route) {
             SettingsScreen(
                 onLogoutClick = {
+                    authRepository.logout()
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Dashboard.route) { inclusive = true }
                     }
