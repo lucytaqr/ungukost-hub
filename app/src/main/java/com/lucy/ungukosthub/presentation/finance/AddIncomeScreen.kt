@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,6 +53,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -109,6 +111,14 @@ fun AddIncomeScreen(
     val backgroundLight = Color(0xFFFBFBFD)
 
     val tenantListState by tenantViewModel.uiState.collectAsState()
+    val financeUiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(financeUiState.isSuccess) {
+        if (financeUiState.isSuccess) {
+            viewModel.resetSuccess()
+            onNavigateBack()
+        }
+    }
 
     var tenantInput by remember { mutableStateOf("") }
     var amountInput by remember { mutableStateOf("") }
@@ -542,20 +552,33 @@ fun AddIncomeScreen(
                     onClick = {
                         val amount = amountInput.toDoubleOrNull() ?: 0.0
                         viewModel.addIncome("Sewa Kamar", tenantInput, amount, dateInput, noteInput, proofPhotoUrl)
-                        onNavigateBack()
                     },
+                    enabled = !financeUiState.isLoading,
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = brandPurple),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = brandPurple,
+                        contentColor = Color.White,
+                        disabledContainerColor = brandPurple.copy(alpha = 0.7f),
+                        disabledContentColor = Color.White
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
                 ) {
-                    Text(
-                        text = "Simpan Pemasukan",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    if (financeUiState.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = "Simpan Pemasukan",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

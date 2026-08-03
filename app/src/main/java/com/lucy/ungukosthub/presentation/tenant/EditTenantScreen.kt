@@ -678,10 +678,19 @@ fun EditTenantScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = brandPurple)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = brandPurple,
+                        contentColor = Color.White,
+                        disabledContainerColor = brandPurple.copy(alpha = 0.7f),
+                        disabledContentColor = Color.White
+                    )
                 ) {
                     if (editState.isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.5.dp)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
                     } else {
                         Text(
                             text = "Simpan Perubahan",
