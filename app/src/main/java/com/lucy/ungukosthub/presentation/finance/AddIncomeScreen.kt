@@ -58,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import com.lucy.ungukosthub.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -155,6 +156,7 @@ fun AddIncomeScreen(
     val datePickerDialog = remember {
         DatePickerDialog(
             context,
+            R.style.PurpleDatePickerTheme,
             { _, year, month, dayOfMonth ->
                 val selectedCalendar = Calendar.getInstance().apply {
                     set(year, month, dayOfMonth)

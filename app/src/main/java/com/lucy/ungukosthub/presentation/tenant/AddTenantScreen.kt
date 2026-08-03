@@ -284,6 +284,7 @@ fun AddTenantScreen(
                             val datePickerDialog = remember {
                                 DatePickerDialog(
                                     context,
+                                    com.lucy.ungukosthub.R.style.PurpleDatePickerTheme,
                                     { _, year, month, dayOfMonth ->
                                         val sel = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
                                         val fmt = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
@@ -333,6 +334,7 @@ fun AddTenantScreen(
                             val entryDatePickerDialog = remember {
                                 DatePickerDialog(
                                     context,
+                                    com.lucy.ungukosthub.R.style.PurpleDatePickerTheme,
                                     { _, year, month, dayOfMonth ->
                                         val sel = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
                                         val fmt = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
@@ -389,6 +391,7 @@ fun AddTenantScreen(
                             val exitDatePickerDialog = remember {
                                 DatePickerDialog(
                                     context,
+                                    com.lucy.ungukosthub.R.style.PurpleDatePickerTheme,
                                     { _, year, month, dayOfMonth ->
                                         val sel = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
                                         val fmt = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))

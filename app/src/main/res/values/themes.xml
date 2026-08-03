@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.UnguKostHub" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.UnguKostHub" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">#4C3BCE</item>
+        <item name="android:colorAccent">#4C3BCE</item>
+        <item name="android:datePickerDialogTheme">@style/PurpleDatePickerTheme</item>
+    </style>
+
+    <style name="PurpleDatePickerTheme" parent="android:Theme.Material.Light.Dialog">
+        <item name="android:colorAccent">#4C3BCE</item>
+        <item name="android:colorPrimary">#4C3BCE</item>
+        <item name="android:colorPrimaryDark">#3F2B96</item>
+    </style>
 </resources>

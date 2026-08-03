@@ -43,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import com.lucy.ungukosthub.R
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -131,6 +132,7 @@ fun FinanceSummaryScreen(
         val startDatePicker = remember {
             DatePickerDialog(
                 context,
+                R.style.PurpleDatePickerTheme,
                 { _, year, month, dayOfMonth ->
                     val sel = Calendar.getInstance().apply { set(year, month, dayOfMonth, 0, 0, 0) }
                     tempStartMillis = sel.timeInMillis
@@ -146,6 +148,7 @@ fun FinanceSummaryScreen(
         val endDatePicker = remember {
             DatePickerDialog(
                 context,
+                R.style.PurpleDatePickerTheme,
                 { _, year, month, dayOfMonth ->
                     val sel = Calendar.getInstance().apply { set(year, month, dayOfMonth, 23, 59, 59) }
                     tempEndMillis = sel.timeInMillis
