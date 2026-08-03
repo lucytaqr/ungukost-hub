@@ -197,7 +197,36 @@ fun TenantListScreen(
                         }
                     }
 
-                    // 2. Tombol + Tambah Penghuni
+                    // 2. Filter Status Chips (Semua, Aktif, Non Aktif)
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            TenantFilterChipItem(
+                                label = "Semua (${uiState.totalCount})",
+                                isSelected = uiState.selectedFilter == TenantFilterCategory.ALL,
+                                onClick = { viewModel.onFilterSelected(TenantFilterCategory.ALL) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            TenantFilterChipItem(
+                                label = "Aktif (${uiState.activeCount})",
+                                isSelected = uiState.selectedFilter == TenantFilterCategory.ACTIVE,
+                                onClick = { viewModel.onFilterSelected(TenantFilterCategory.ACTIVE) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            TenantFilterChipItem(
+                                label = "Non Aktif (${uiState.inactiveCount})",
+                                isSelected = uiState.selectedFilter == TenantFilterCategory.INACTIVE,
+                                onClick = { viewModel.onFilterSelected(TenantFilterCategory.INACTIVE) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    // 3. Tombol + Tambah Penghuni
                     item {
                         Box(
                             modifier = Modifier
@@ -397,6 +426,35 @@ fun TenantRowItem(
                 contentDescription = "Detail",
                 tint = brandPurple,
                 modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun TenantFilterChipItem(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val brandPurple = Color(0xFF4C3BCE)
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) brandPurple else Color(0xFFF3F2F8)
+    ) {
+        Box(
+            modifier = Modifier.padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = 13.sp,
+                    color = if (isSelected) Color.White else Color(0xFF555555)
+                )
             )
         }
     }

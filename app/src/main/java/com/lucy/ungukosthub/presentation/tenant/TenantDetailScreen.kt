@@ -126,7 +126,8 @@ fun TenantDetailScreen(
                 Button(
                     onClick = {
                         showDeleteDialog = false
-                        viewModel.deleteTenant(tenantId = tenant?.id ?: tenantId, onSuccess = onNavigateBack)
+                        viewModel.deleteTenant(tenantId = tenant?.id ?: tenantId)
+                        onNavigateBack()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))
                 ) {

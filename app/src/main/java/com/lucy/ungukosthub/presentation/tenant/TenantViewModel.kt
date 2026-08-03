@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lucy.ungukosthub.core.util.Resource
 import com.lucy.ungukosthub.domain.model.Tenant
+import com.lucy.ungukosthub.domain.model.isActive
 import com.lucy.ungukosthub.domain.repository.RoomRepository
 import com.lucy.ungukosthub.domain.repository.TenantRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,10 +20,20 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
+enum class TenantFilterCategory {
+    ALL,
+    ACTIVE,
+    INACTIVE
+}
+
 data class TenantListUiState(
     val tenants: List<Tenant> = emptyList(),
     val filteredTenants: List<Tenant> = emptyList(),
     val searchQuery: String = "",
+    val selectedFilter: TenantFilterCategory = TenantFilterCategory.ALL,
+    val totalCount: Int = 0,
+    val activeCount: Int = 0,
+    val inactiveCount: Int = 0,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
@@ -94,6 +105,46 @@ class TenantViewModel @Inject constructor(
         }
     }
 
+    private fun applyTenantFilters(
+        allTenants: List<Tenant>,
+        query: String,
+        filter: TenantFilterCategory
+    ) {
+        val sortedList = allTenants.sortedBy { it.name.lowercase() }
+        val total = sortedList.size
+        val active = sortedList.count { it.isActive() }
+        val inactive = sortedList.count { !it.isActive() }
+
+        val searched = if (query.isBlank()) {
+            sortedList
+        } else {
+            sortedList.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                        it.roomId.contains(query, ignoreCase = true) ||
+                        it.roomNumber.contains(query, ignoreCase = true) ||
+                        it.origin.contains(query, ignoreCase = true)
+            }
+        }
+
+        val filtered = when (filter) {
+            TenantFilterCategory.ALL -> searched
+            TenantFilterCategory.ACTIVE -> searched.filter { it.isActive() }
+            TenantFilterCategory.INACTIVE -> searched.filter { !it.isActive() }
+        }
+
+        _uiState.value = _uiState.value.copy(
+            tenants = sortedList,
+            filteredTenants = filtered,
+            searchQuery = query,
+            selectedFilter = filter,
+            totalCount = total,
+            activeCount = active,
+            inactiveCount = inactive,
+            isLoading = false,
+            errorMessage = null
+        )
+    }
+
     fun observeTenants() {
         tenantRepository.getTenants().onEach { result ->
             when (result) {
@@ -102,18 +153,16 @@ class TenantViewModel @Inject constructor(
                 }
                 is Resource.Success -> {
                     val rawList = result.data ?: emptyList()
-                    val sortedList = rawList.sortedBy { it.name.lowercase() }
-                    _uiState.value = _uiState.value.copy(
-                        tenants = sortedList,
-                        filteredTenants = sortedList,
-                        isLoading = false,
-                        errorMessage = null
+                    applyTenantFilters(
+                        allTenants = rawList,
+                        query = _uiState.value.searchQuery,
+                        filter = _uiState.value.selectedFilter
                     )
 
                     // Auto-populate edit state if waiting for data
                     val pendingId = _editTenantState.value.tenantId
                     if (pendingId.isNotBlank() && _editTenantState.value.nameInput.isBlank()) {
-                        val t = sortedList.find { it.id == pendingId }
+                        val t = rawList.find { it.id == pendingId }
                         if (t != null) {
                             _editTenantState.value = EditTenantUiState(
                                 tenantId = t.id,
@@ -144,13 +193,19 @@ class TenantViewModel @Inject constructor(
     }
 
     fun onSearchQueryChanged(query: String) {
-        val filtered = _uiState.value.tenants.filter {
-            it.name.contains(query, ignoreCase = true) ||
-                    it.roomId.contains(query, ignoreCase = true) ||
-                    it.roomNumber.contains(query, ignoreCase = true) ||
-                    it.origin.contains(query, ignoreCase = true)
-        }.sortedBy { it.name.lowercase() }
-        _uiState.value = _uiState.value.copy(searchQuery = query, filteredTenants = filtered)
+        applyTenantFilters(
+            allTenants = _uiState.value.tenants,
+            query = query,
+            filter = _uiState.value.selectedFilter
+        )
+    }
+
+    fun onFilterSelected(filter: TenantFilterCategory) {
+        applyTenantFilters(
+            allTenants = _uiState.value.tenants,
+            query = _uiState.value.searchQuery,
+            filter = filter
+        )
     }
 
     fun onNameChanged(value: String) { _addTenantState.value = _addTenantState.value.copy(nameInput = value) }
@@ -196,18 +251,12 @@ class TenantViewModel @Inject constructor(
             )
 
             tenantRepository.addTenant(newTenant)
-            val updated = (_uiState.value.tenants + newTenant).sortedBy { it.name.lowercase() }
-            _uiState.value = _uiState.value.copy(tenants = updated, filteredTenants = updated)
-
-            // Sync room occupancy status based on exit date
-            if (assignedRoomKey.isNotBlank()) {
-                when (val roomRes = roomRepository.getRoomById(assignedRoomKey)) {
-                    is Resource.Success -> {
-                        roomRes.data?.let { roomRepository.updateRoom(it.copy(isOccupied = isStillOccupied)) }
-                    }
-                    else -> {}
-                }
-            }
+            val updatedList = _uiState.value.tenants + newTenant
+            applyTenantFilters(
+                allTenants = updatedList,
+                query = _uiState.value.searchQuery,
+                filter = _uiState.value.selectedFilter
+            )
 
             _addTenantState.value = AddTenantUiState(isSuccess = true)
         }
@@ -218,73 +267,23 @@ class TenantViewModel @Inject constructor(
     }
 
     fun loadTenantForEdit(tenantId: String) {
-        if (tenantId.isBlank()) return
-
-        val existing = _uiState.value.tenants.find { it.id == tenantId }
-        if (existing != null) {
+        val t = _uiState.value.tenants.find { it.id == tenantId }
+        if (t != null) {
             _editTenantState.value = EditTenantUiState(
-                tenantId = existing.id,
-                nameInput = existing.name,
-                originInput = existing.origin,
-                birthDateInput = existing.birthDate,
-                entryDateInput = existing.entryDateText,
-                exitDateInput = existing.exitDateText,
-                phoneInput = existing.phone.ifBlank { existing.emergencyContact },
-                roomIdInput = existing.roomId,
-                roomNumberInput = existing.roomNumber.ifBlank { existing.roomId },
-                ktpPhotoUrlInput = existing.ktpUrl,
+                tenantId = t.id,
+                nameInput = t.name,
+                originInput = t.origin,
+                birthDateInput = t.birthDate,
+                entryDateInput = t.entryDateText,
+                exitDateInput = t.exitDateText,
+                phoneInput = t.phone.ifBlank { t.emergencyContact },
+                roomIdInput = t.roomId,
+                roomNumberInput = t.roomNumber.ifBlank { t.roomId },
+                ktpPhotoUrlInput = t.ktpUrl,
                 isLoading = false
             )
-            return
-        }
-
-        viewModelScope.launch {
-            _editTenantState.value = _editTenantState.value.copy(tenantId = tenantId, isLoading = true)
-            when (val result = tenantRepository.getTenantById(tenantId)) {
-                is Resource.Success -> {
-                    val t = result.data
-                    if (t != null) {
-                        _editTenantState.value = EditTenantUiState(
-                            tenantId = t.id,
-                            nameInput = t.name,
-                            originInput = t.origin,
-                            birthDateInput = t.birthDate,
-                            entryDateInput = t.entryDateText,
-                            exitDateInput = t.exitDateText,
-                            phoneInput = t.phone.ifBlank { t.emergencyContact },
-                            roomIdInput = t.roomId,
-                            roomNumberInput = t.roomNumber.ifBlank { t.roomId },
-                            ktpPhotoUrlInput = t.ktpUrl,
-                            isLoading = false
-                        )
-                    } else {
-                        _editTenantState.value = _editTenantState.value.copy(isLoading = false)
-                    }
-                }
-                is Resource.Error -> {
-                    val fallback = _uiState.value.tenants.find { it.id == tenantId }
-                    if (fallback != null) {
-                        _editTenantState.value = EditTenantUiState(
-                            tenantId = fallback.id,
-                            nameInput = fallback.name,
-                            originInput = fallback.origin,
-                            birthDateInput = fallback.birthDate,
-                            entryDateInput = fallback.entryDateText,
-                            exitDateInput = fallback.exitDateText,
-                            phoneInput = fallback.phone.ifBlank { fallback.emergencyContact },
-                            roomIdInput = fallback.roomId,
-                            roomNumberInput = fallback.roomNumber.ifBlank { fallback.roomId },
-                            ktpPhotoUrlInput = fallback.ktpUrl,
-                            isLoading = false
-                        )
-                    } else {
-                        _editTenantState.value = _editTenantState.value.copy(isLoading = false)
-                    }
-                }
-                else -> {
-                    _editTenantState.value = _editTenantState.value.copy(isLoading = false)
-                }
-            }
+        } else {
+            _editTenantState.value = EditTenantUiState(tenantId = tenantId)
         }
     }
 
@@ -308,10 +307,7 @@ class TenantViewModel @Inject constructor(
 
         viewModelScope.launch {
             _editTenantState.value = state.copy(isLoading = true, errorMessage = null)
-            val oldTenant = _uiState.value.tenants.find { it.id == state.tenantId }
-            val oldRoomKey = oldTenant?.roomId?.ifBlank { oldTenant.roomNumber } ?: ""
-            val newRoomKey = state.roomIdInput.ifBlank { state.roomNumberInput }
-
+            val assignedRoomKey = state.roomIdInput.ifBlank { state.roomNumberInput }
             val isStillOccupied = isTenantActiveByDate(state.exitDateInput)
 
             val updatedTenant = Tenant(
@@ -321,7 +317,7 @@ class TenantViewModel @Inject constructor(
                 birthDate = state.birthDateInput.trim(),
                 phone = state.phoneInput.trim(),
                 emergencyContact = state.phoneInput.trim(),
-                roomId = newRoomKey,
+                roomId = assignedRoomKey,
                 roomNumber = state.roomNumberInput.ifBlank { state.roomIdInput },
                 ktpUrl = state.ktpPhotoUrlInput,
                 status = if (isStillOccupied) "Aktif" else "Keluar",
@@ -330,39 +326,13 @@ class TenantViewModel @Inject constructor(
             )
 
             tenantRepository.updateTenant(updatedTenant)
-            val updatedList = _uiState.value.tenants.map {
-                if (it.id == state.tenantId) updatedTenant else it
-            }.sortedBy { it.name.lowercase() }
-            _uiState.value = _uiState.value.copy(tenants = updatedList, filteredTenants = updatedList)
 
-            // Update old room if changed
-            if (oldRoomKey.isNotBlank() && oldRoomKey != newRoomKey) {
-                val remainingActive = updatedList.filter {
-                    (it.roomId == oldRoomKey || it.roomNumber == oldRoomKey) &&
-                            it.id != state.tenantId &&
-                            isTenantActiveByDate(it.exitDateText)
-                }
-                if (remainingActive.isEmpty()) {
-                    when (val oldRes = roomRepository.getRoomById(oldRoomKey)) {
-                        is Resource.Success -> oldRes.data?.let { roomRepository.updateRoom(it.copy(isOccupied = false)) }
-                        else -> {}
-                    }
-                }
-            }
-
-            // Update new room occupancy based on exit date
-            if (newRoomKey.isNotBlank()) {
-                val hasOtherActive = updatedList.any {
-                    (it.roomId == newRoomKey || it.roomNumber == newRoomKey) &&
-                            it.id != state.tenantId &&
-                            isTenantActiveByDate(it.exitDateText)
-                }
-                val finalOccupied = isStillOccupied || hasOtherActive
-                when (val newRes = roomRepository.getRoomById(newRoomKey)) {
-                    is Resource.Success -> newRes.data?.let { roomRepository.updateRoom(it.copy(isOccupied = finalOccupied)) }
-                    else -> {}
-                }
-            }
+            val newList = _uiState.value.tenants.map { if (it.id == updatedTenant.id) updatedTenant else it }
+            applyTenantFilters(
+                allTenants = newList,
+                query = _uiState.value.searchQuery,
+                filter = _uiState.value.selectedFilter
+            )
 
             _editTenantState.value = EditTenantUiState(isSuccess = true)
         }
@@ -372,28 +342,17 @@ class TenantViewModel @Inject constructor(
         _editTenantState.value = EditTenantUiState()
     }
 
-    fun deleteTenant(tenantId: String, onSuccess: () -> Unit = {}) {
+    fun deleteTenant(tenantId: String) {
         viewModelScope.launch {
-            val oldTenant = _uiState.value.tenants.find { it.id == tenantId }
-            val roomKey = oldTenant?.roomId?.ifBlank { oldTenant.roomNumber } ?: ""
-
+            val t = _uiState.value.tenants.find { it.id == tenantId }
             tenantRepository.deleteTenant(tenantId)
-            val updated = _uiState.value.tenants.filter { it.id != tenantId }.sortedBy { it.name.lowercase() }
-            _uiState.value = _uiState.value.copy(tenants = updated, filteredTenants = updated)
 
-            if (roomKey.isNotBlank()) {
-                val remainingActive = updated.filter {
-                    (it.roomId == roomKey || it.roomNumber == roomKey) && isTenantActiveByDate(it.exitDateText)
-                }
-                if (remainingActive.isEmpty()) {
-                    when (val roomRes = roomRepository.getRoomById(roomKey)) {
-                        is Resource.Success -> roomRes.data?.let { roomRepository.updateRoom(it.copy(isOccupied = false)) }
-                        else -> {}
-                    }
-                }
-            }
-
-            onSuccess()
+            val updated = _uiState.value.tenants.filter { it.id != tenantId }
+            applyTenantFilters(
+                allTenants = updated,
+                query = _uiState.value.searchQuery,
+                filter = _uiState.value.selectedFilter
+            )
         }
     }
 }
