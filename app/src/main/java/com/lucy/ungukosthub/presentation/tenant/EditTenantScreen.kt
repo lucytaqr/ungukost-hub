@@ -457,45 +457,33 @@ fun EditTenantScreen(
                             )
                         }
 
-                        // 5. Kamar yang Ditempati * (Searchable Dropdown)
+                        // 5. Kamar yang Ditempati *
                         Column {
                             LabelWithAsterisk(label = "Kamar yang Ditempati")
                             Spacer(modifier = Modifier.height(6.dp))
-
-                            val availableRooms = roomListState.rooms
-                            val filteredRooms = remember(editState.roomNumberInput, availableRooms) {
-                                val q = editState.roomNumberInput.trim()
-                                if (q.isBlank()) {
-                                    availableRooms
-                                } else {
-                                    availableRooms.filter {
-                                        it.roomNumber.contains(q, ignoreCase = true) ||
-                                        "Kamar ${it.roomNumber}".contains(q, ignoreCase = true)
-                                    }
-                                }
-                            }
-
                             Box(modifier = Modifier.fillMaxWidth()) {
+                                val selectedRoomText = if (editState.roomNumberInput.isNotBlank()) {
+                                    val r = editState.roomNumberInput
+                                    if (r.startsWith("Kamar", ignoreCase = true)) r else "Kamar $r"
+                                } else ""
+
                                 OutlinedTextField(
-                                    value = editState.roomNumberInput,
-                                    onValueChange = {
-                                        viewModel.onEditRoomSelected("", it)
-                                        roomDropdownExpanded = true
-                                    },
-                                    readOnly = false,
-                                    placeholder = { Text("Ketik nomor kamar atau pilih...", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
+                                    value = selectedRoomText,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    placeholder = { Text("Pilih Kamar", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
                                     trailingIcon = {
-                                        IconButton(onClick = { roomDropdownExpanded = !roomDropdownExpanded }) {
-                                            Icon(
-                                                imageVector = Icons.Default.KeyboardArrowDown,
-                                                contentDescription = "Dropdown Kamar",
-                                                tint = brandPurple
-                                            )
-                                        }
+                                        Icon(
+                                            imageVector = Icons.Default.KeyboardArrowDown,
+                                            contentDescription = "Dropdown",
+                                            tint = brandPurple,
+                                            modifier = Modifier.clickable { roomDropdownExpanded = !roomDropdownExpanded }
+                                        )
                                     },
-                                    singleLine = true,
                                     shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { roomDropdownExpanded = !roomDropdownExpanded },
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = brandPurple,
                                         unfocusedBorderColor = Color(0xFFEBEBF5),
@@ -505,16 +493,17 @@ fun EditTenantScreen(
                                 )
 
                                 DropdownMenu(
-                                    expanded = roomDropdownExpanded && filteredRooms.isNotEmpty(),
+                                    expanded = roomDropdownExpanded,
                                     onDismissRequest = { roomDropdownExpanded = false }
                                 ) {
+                                    val availableRooms = roomListState.rooms
                                     if (availableRooms.isEmpty()) {
                                         DropdownMenuItem(
                                             text = { Text("Belum ada data kamar tersedia", color = Color(0xFF8E8E93)) },
                                             onClick = { roomDropdownExpanded = false }
                                         )
                                     } else {
-                                        filteredRooms.forEach { room ->
+                                        availableRooms.forEach { room ->
                                             DropdownMenuItem(
                                                 text = { Text("Kamar ${room.roomNumber}") },
                                                 onClick = {

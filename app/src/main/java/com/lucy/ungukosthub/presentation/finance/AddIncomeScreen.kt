@@ -230,39 +230,28 @@ fun AddIncomeScreen(
                             )
                         )
 
-                        // 1. Dari Penghuni * (Searchable Real Data Firestore)
+                        // 1. Dari Penghuni * (Real Data Firestore)
                         Column {
                             LabelWithAsterisk(label = "Dari Penghuni")
                             Spacer(modifier = Modifier.height(6.dp))
-                            val filteredTenantOptions = remember(tenantInput, tenantOptions) {
-                                if (tenantInput.isBlank()) {
-                                    tenantOptions
-                                } else {
-                                    tenantOptions.filter { it.contains(tenantInput, ignoreCase = true) }
-                                }
-                            }
-
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 OutlinedTextField(
                                     value = tenantInput,
-                                    onValueChange = {
-                                        tenantInput = it
-                                        tenantDropdownExpanded = true
-                                    },
-                                    readOnly = false,
-                                    placeholder = { Text("Ketik atau pilih penghuni...", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    placeholder = { Text("Pilih penghuni", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
                                     trailingIcon = {
-                                        IconButton(onClick = { tenantDropdownExpanded = !tenantDropdownExpanded }) {
-                                            Icon(
-                                                imageVector = Icons.Default.KeyboardArrowDown,
-                                                contentDescription = "Dropdown Penghuni",
-                                                tint = brandPurple
-                                            )
-                                        }
+                                        Icon(
+                                            imageVector = Icons.Default.KeyboardArrowDown,
+                                            contentDescription = null,
+                                            tint = brandPurple,
+                                            modifier = Modifier.clickable { tenantDropdownExpanded = !tenantDropdownExpanded }
+                                        )
                                     },
-                                    singleLine = true,
                                     shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { tenantDropdownExpanded = !tenantDropdownExpanded },
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = brandPurple,
                                         unfocusedBorderColor = Color(0xFFEBEBF5),
@@ -271,7 +260,7 @@ fun AddIncomeScreen(
                                     )
                                 )
                                 DropdownMenu(
-                                    expanded = tenantDropdownExpanded && filteredTenantOptions.isNotEmpty(),
+                                    expanded = tenantDropdownExpanded,
                                     onDismissRequest = { tenantDropdownExpanded = false }
                                 ) {
                                     if (tenantOptions.isEmpty()) {
@@ -280,7 +269,7 @@ fun AddIncomeScreen(
                                             onClick = { tenantDropdownExpanded = false }
                                         )
                                     } else {
-                                        filteredTenantOptions.forEach { option ->
+                                        tenantOptions.forEach { option ->
                                             DropdownMenuItem(
                                                 text = { Text(option) },
                                                 onClick = {
