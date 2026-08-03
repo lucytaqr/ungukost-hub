@@ -18,7 +18,8 @@ data class TenantDto(
     @get:PropertyName("ktpUrl") @set:PropertyName("ktpUrl") var ktpUrl: String = "",
     @get:PropertyName("status") @set:PropertyName("status") var status: String = "Aktif",
     @get:PropertyName("entryDate") @set:PropertyName("entryDate") var entryDate: Long = System.currentTimeMillis(),
-    @get:PropertyName("entryDateText") @set:PropertyName("entryDateText") var entryDateText: String = ""
+    @get:PropertyName("entryDateText") @set:PropertyName("entryDateText") var entryDateText: String = "",
+    @get:PropertyName("exitDateText") @set:PropertyName("exitDateText") var exitDateText: String = ""
 )
 
 fun TenantDto.toDomain(): Tenant {
@@ -34,7 +35,8 @@ fun TenantDto.toDomain(): Tenant {
         ktpUrl = ktpUrl,
         status = status,
         entryDate = entryDate,
-        entryDateText = entryDateText
+        entryDateText = entryDateText,
+        exitDateText = exitDateText
     )
 }
 
@@ -51,6 +53,7 @@ fun Tenant.toDto(): TenantDto {
         ktpUrl = ktpUrl,
         status = status,
         entryDate = entryDate,
-        entryDateText = entryDateText
+        entryDateText = entryDateText,
+        exitDateText = exitDateText
     )
 }

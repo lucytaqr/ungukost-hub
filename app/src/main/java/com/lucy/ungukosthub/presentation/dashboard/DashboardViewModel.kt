@@ -3,6 +3,7 @@ package com.lucy.ungukosthub.presentation.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lucy.ungukosthub.domain.model.Room
+import com.lucy.ungukosthub.domain.model.Tenant
 import com.lucy.ungukosthub.domain.model.TransactionType
 import com.lucy.ungukosthub.domain.model.User
 import com.lucy.ungukosthub.domain.repository.AuthRepository
@@ -27,6 +28,7 @@ data class TenantBillReminder(
     val roomNumber: String = "",
     val phone: String = "",
     val entryDateText: String = "",
+    val exitDateText: String = "",
     val amount: Double = 0.0
 )
 
@@ -69,6 +71,23 @@ class DashboardViewModel @Inject constructor(
         return format.format(date)
     }
 
+    private fun isTenantActiveByDate(exitDateText: String): Boolean {
+        if (exitDateText.isBlank()) return true
+        return try {
+            val sdf = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
+            val exitDate = sdf.parse(exitDateText) ?: return true
+            val todayCal = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            !exitDate.before(todayCal.time)
+        } catch (e: Exception) {
+            true
+        }
+    }
+
     private fun loadDashboardData() {
         val authUser = authRepository.getCurrentUser()
         val user = authUser ?: User(
@@ -90,8 +109,11 @@ class DashboardViewModel @Inject constructor(
             val tenants = tenantsRes.data ?: emptyList()
             val transactions = transactionsRes.data ?: emptyList()
 
+            // Filter hanya penghuni yang belum melewati tanggal keluar
+            val activeTenants = tenants.filter { isTenantActiveByDate(it.exitDateText) }
+
             val occupiedCount = rooms.count { room ->
-                tenants.any { t -> t.roomId == room.id || t.roomNumber == room.roomNumber }
+                activeTenants.any { t -> t.roomId == room.id || t.roomNumber == room.roomNumber }
             }
             val emptyCount = (rooms.size - occupiedCount).coerceAtLeast(0)
 
@@ -101,7 +123,7 @@ class DashboardViewModel @Inject constructor(
                 .sumOf { it.amount }
 
             val totalOccupiedRoomValue = rooms.filter { room ->
-                tenants.any { t -> t.roomId == room.id || t.roomNumber == room.roomNumber }
+                activeTenants.any { t -> t.roomId == room.id || t.roomNumber == room.roomNumber }
             }.sumOf { it.price }
 
             val realMonthIncome = if (currentMonthIncomeTransactions > 0) {
@@ -153,8 +175,8 @@ class DashboardViewModel @Inject constructor(
                 }
             }
 
-            // Build Bill Reminders list for active tenants
-            val reminders = tenants.map { tenant ->
+            // Build Bill Reminders list for active tenants only
+            val reminders = activeTenants.map { tenant ->
                 val matchedRoom = rooms.find { it.id == tenant.roomId || it.roomNumber == tenant.roomNumber }
                 val roomPrice = matchedRoom?.price ?: 0.0
                 val roomNum = tenant.roomNumber.ifBlank { tenant.roomId }
@@ -165,6 +187,7 @@ class DashboardViewModel @Inject constructor(
                     roomNumber = roomNum,
                     phone = tenant.phone.ifBlank { tenant.emergencyContact },
                     entryDateText = tenant.entryDateText,
+                    exitDateText = tenant.exitDateText,
                     amount = roomPrice
                 )
             }

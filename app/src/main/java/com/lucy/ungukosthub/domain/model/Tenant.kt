@@ -15,5 +15,6 @@ data class Tenant(
     val ktpUrl: String = "",
     val status: String = "Aktif",
     val entryDate: Long = System.currentTimeMillis(),
-    val entryDateText: String = ""
+    val entryDateText: String = "",
+    val exitDateText: String = ""
 )

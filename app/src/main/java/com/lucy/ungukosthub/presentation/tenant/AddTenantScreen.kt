@@ -374,6 +374,62 @@ fun AddTenantScreen(
                             }
                         }
 
+                        // 3c. Tanggal Keluar (Dialog Kalender)
+                        Column {
+                            Text(
+                                text = "Tanggal Keluar",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = darkTitleColor,
+                                    fontSize = 14.sp
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            val calendarExit = Calendar.getInstance()
+                            val exitDatePickerDialog = remember {
+                                DatePickerDialog(
+                                    context,
+                                    { _, year, month, dayOfMonth ->
+                                        val sel = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
+                                        val fmt = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
+                                        viewModel.onExitDateChanged(fmt.format(sel.time))
+                                    },
+                                    calendarExit.get(Calendar.YEAR),
+                                    calendarExit.get(Calendar.MONTH),
+                                    calendarExit.get(Calendar.DAY_OF_MONTH)
+                                )
+                            }
+
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = addState.exitDateInput,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    placeholder = { Text("Pilih tanggal keluar (opsional)", color = Color(0xFF9E9E9E), fontSize = 14.sp) },
+                                    trailingIcon = {
+                                        IconButton(onClick = { exitDatePickerDialog.show() }) {
+                                            Icon(
+                                                imageVector = Icons.Default.DateRange,
+                                                contentDescription = "Pilih Tanggal Keluar",
+                                                tint = brandPurple
+                                            )
+                                        }
+                                    },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { exitDatePickerDialog.show() },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = brandPurple,
+                                        unfocusedBorderColor = Color(0xFFEBEBF5),
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+
                         // 4. No. HP *
                         Column {
                             LabelWithAsterisk(label = "No. HP")
